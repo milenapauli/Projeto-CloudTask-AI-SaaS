@@ -41,15 +41,24 @@ WORKDIR /app
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
 
-# ---------- Builder: instala dependências ----------------------------------
-# Camadas: requirements.txt PRIMEIRO (cacheável) → código depois.
-# Em "dev" trazemos também requirements-dev.txt.
+# ---------- Builders: instalam dependências em camadas --------------------
+# Cadeia de builders, cada um herdando do anterior e somando dependências:
+#   builder-prod -> builder-test -> builder-dev
+# POR QUÊ em cadeia: evita reinstalar o que já foi instalado e mantém o cache.
+# Cada estágio copia o requirements PRIMEIRO e instala — assim, enquanto o
+# requirements não muda, a camada de instalação é reaproveitada (build rápido).
 # ---------------------------------------------------------------------------
 FROM base AS builder-prod
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
-FROM builder-prod AS builder-dev
+# builder-test = prod + ferramentas de teste (pytest, httpx, cobertura).
+FROM builder-prod AS builder-test
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir --user -r requirements-test.txt
+
+# builder-dev = test + ferramentas de dev (debugpy, ruff, mypy...).
+FROM builder-test AS builder-dev
 COPY requirements-dev.txt .
 RUN pip install --no-cache-dir --user -r requirements-dev.txt
 
@@ -76,6 +85,26 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # tudo é HTTP e pode gerar URLs/redirects errados. "*" confia em qualquer proxy
 # — aceitável porque, em produção, só o ALB fala com o pod (rede privada).
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT} --proxy-headers --forwarded-allow-ips='*'"]
+
+
+# ---------- Target final: TEST ---------------------------------------------
+# Imagem usada para rodar a suíte de testes (pytest) de forma isolada — no CI
+# (futuro) e localmente via docker-compose.test.yml.
+# Inclui as libs de teste (de builder-test) e EMBUTE o código + a pasta tests/
+# (sem volume), garantindo reprodutibilidade: o que está na imagem é o que é
+# testado.
+# ---------------------------------------------------------------------------
+FROM base AS test
+
+COPY --from=builder-test --chown=appuser:appgroup /root/.local /home/appuser/.local
+COPY --chown=appuser:appgroup app/          /app/app/
+COPY --chown=appuser:appgroup tests/        /app/tests/
+COPY --chown=appuser:appgroup pyproject.toml /app/pyproject.toml
+
+USER appuser
+
+# Comando padrão: roda a suíte. O CI/compose pode sobrescrever com flags.
+CMD ["pytest", "-q"]
 
 
 # ---------- Target final: DEV ----------------------------------------------

@@ -1,0 +1,50 @@
+# =============================================================================
+# docker-compose.test.yml — OVERRIDE para rodar os testes
+# -----------------------------------------------------------------------------
+# Sobe a API no target `test` (com pytest) + um PostgreSQL EFÊMERO, roda a
+# suíte e sai. Use SEMPRE com um project name separado para NÃO colidir com o
+# seu devcontainer/dev:
+#
+#   docker compose -p cloudtask-test \
+#     -f docker-compose.yml -f docker-compose.test.yml \
+#     run --rm api
+#
+# Para derrubar tudo do projeto de teste depois:
+#   docker compose -p cloudtask-test \
+#     -f docker-compose.yml -f docker-compose.test.yml down -v
+#
+# CARACTERÍSTICAS:
+#   * Banco efêmero (sem volume, sem porta no host) -> estado limpo, zero
+#     conflito de porta com o seu PostgreSQL local/dev.
+#   * Código embutido na imagem `test` (sem bind mount) -> reprodutível.
+# =============================================================================
+
+services:
+
+  api:
+    build:
+      target: test
+    image: cloudtask-api:test
+    container_name: cloudtask-api-test
+    environment:
+      APP_ENV: test
+      LOG_LEVEL: WARNING
+      # Banco de testes dedicado. A conftest também cria/usa este banco.
+      DATABASE_URL: postgresql+psycopg2://cloudtask:cloudtask@db:5432/cloudtask_test
+      TEST_DATABASE_URL: postgresql+psycopg2://cloudtask:cloudtask@db:5432/cloudtask_test
+    # Sem bind mount: o que está na imagem É o que é testado.
+    volumes: !reset null
+    # Sem portas publicadas: nada para colidir no host.
+    ports: !reset null
+    restart: "no"
+
+  db:
+    container_name: cloudtask-db-test
+    environment:
+      POSTGRES_USER: cloudtask
+      POSTGRES_PASSWORD: cloudtask
+      # O banco principal do container de teste já nasce como o de testes.
+      POSTGRES_DB: cloudtask_test
+    # Banco totalmente efêmero (sem volume nomeado) e sem porta no host.
+    volumes: !reset null
+    ports: !reset null

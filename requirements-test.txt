@@ -1,0 +1,10 @@
+# Dependências para rodar os testes (target `test` do Dockerfile e no CI).
+# Incluímos as de produção para a app importar normalmente durante os testes.
+-r requirements.txt
+
+# pytest: framework de testes.
+pytest>=8.0,<9.0
+# pytest-cov: relatório de cobertura (quanto do código foi exercitado).
+pytest-cov>=5.0,<7.0
+# httpx: cliente HTTP usado pelo TestClient do FastAPI para chamar as rotas.
+httpx>=0.27,<1.0

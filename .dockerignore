@@ -34,11 +34,13 @@ htmlcov
 Thumbs.db
 desktop.ini
 
-# Pastas que não precisam entrar na imagem
+# Pastas que não precisam entrar na imagem.
+# OBS: tests/ NÃO é ignorado — o target `test` do Dockerfile precisa dele.
+#      Mesmo assim, o target `prod` copia apenas app/, então tests/ não vaza
+#      para a imagem de produção.
 docs/
 exemplos/
 infra/
-tests/
 scripts/
 .readme_docs/
 .devcontainer/

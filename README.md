@@ -130,6 +130,82 @@ O host `db` é o nome do serviço no Compose. Esta **mesma URL** servirá para o
 Amazon RDS na nuvem — só muda o host/usuário/senha (via Secret). Por isso
 usamos PostgreSQL 16 local, igual ao RDS.
 
+## Testes (unitários + integração)
+
+A suíte de testes cobre schemas, configuração, endpoints de saúde e o CRUD
+completo contra um PostgreSQL. Os arquivos ficam em [`tests/`](tests/) e estão
+disponíveis tanto no container de **dev** quanto no de **test**.
+
+### Opção A — dentro do devcontainer (mais simples)
+
+O devcontainer já traz o `pytest`. No terminal integrado do VS Code:
+
+```bash
+pytest                 # roda todos os testes
+pytest -v              # modo verboso (lista cada teste)
+pytest tests/test_tasks_crud.py     # só um arquivo
+pytest -k crud         # só testes cujo nome casa com "crud"
+pytest --cov=app       # com relatório de cobertura
+```
+
+> Os testes usam um banco **separado** (`cloudtask_test`), criado
+> automaticamente. Seus dados de desenvolvimento (`cloudtask`) **não** são
+> tocados.
+
+### Opção B — container de testes isolado (igual ao CI)
+
+Sobe uma imagem `test` + um PostgreSQL efêmero, roda a suíte e sai. Use um
+*project name* separado (`-p cloudtask-test`) para **não colidir** com o seu
+devcontainer:
+
+```bash
+# rodar a suíte
+docker compose -p cloudtask-test \
+  -f docker-compose.yml -f docker-compose.test.yml \
+  run --rm api
+
+# limpar tudo depois
+docker compose -p cloudtask-test \
+  -f docker-compose.yml -f docker-compose.test.yml down -v
+```
+
+### O que cada arquivo de teste cobre
+
+| Arquivo | Tipo | Cobre |
+| --- | --- | --- |
+| `tests/test_schemas.py` | unitário | validação dos schemas Pydantic (defaults, título vazio, enums) |
+| `tests/test_config.py` | unitário | parsing do `.env` (TRUSTED_HOSTS CSV, `FORCE_HTTPS` bool) |
+| `tests/test_health.py` | integração | `/`, `/health` (liveness) e `/health/ready` (200 e 503) |
+| `tests/test_tasks_crud.py` | integração | CRUD completo de `/tasks` + erros 404/422 |
+
+## Entendendo o Docker do projeto
+
+Quer saber o que são `cloudtask-api:dev` / `:prod` / `:test`, como o
+`Dockerfile` multi-stage funciona e a diferença entre os três arquivos de
+Compose? Veja o guia: [`docs/docker-explained.md`](docs/docker-explained.md).
+
+Resumo rápido:
+
+| Imagem | Para quê | Onde aparece |
+| --- | --- | --- |
+| `cloudtask-api:dev` | desenvolver (hot-reload, debug) | devcontainer, `docker-compose.yml` |
+| `cloudtask-api:test` | rodar `pytest` | `docker-compose.test.yml`, CI |
+| `cloudtask-api:prod` | produção enxuta | `docker-compose.prod.yml`, ECR/EKS |
+
+## Conhecendo a aplicação (passo a passo)
+
+1. Abra o devcontainer (`F1 → Dev Containers: Reopen in Container`). A API sobe
+   sozinha.
+2. Acesse o **Swagger**: <http://localhost:8000/docs> — clique em **Try it out**
+   em qualquer rota para chamá-la pelo navegador.
+3. Veja os metadados: <http://localhost:8000/> e a saúde:
+   <http://localhost:8000/health> e <http://localhost:8000/health/ready>.
+4. Crie tarefas pelo Swagger (`POST /tasks`) ou pelo `curl` (seção acima).
+5. Veja os logs da API: `docker compose logs -f api`.
+6. Entre no banco: `docker compose exec db psql -U cloudtask cloudtask` e rode
+   `SELECT * FROM tasks;`.
+7. Rode os testes: `pytest -v`.
+
 ## O que vem na próxima aula
 
 - **Semana 3 (branch `semana-03-s3-kubernetes`):** upload de arquivos com Amazon S3
@@ -142,6 +218,7 @@ usamos PostgreSQL 16 local, igual ao RDS.
 - Guia geral: [`docs/HOW_TO_USE.md`](docs/HOW_TO_USE.md)
 - Setup do zero: [`docs/aws-academy-setup.md`](docs/aws-academy-setup.md)
 - Segurança: [`docs/security-model.md`](docs/security-model.md) · [`docs/aws-networking.md`](docs/aws-networking.md) · [`docs/https-tls.md`](docs/https-tls.md)
+- Docker explicado: [`docs/docker-explained.md`](docs/docker-explained.md)
 - SQLAlchemy 2.0: <https://docs.sqlalchemy.org/en/20/>
 
 ## Licença

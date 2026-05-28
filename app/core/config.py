@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     """
 
     # --- Aplicação ---------------------------------------------------------
-    app_env: Literal["development", "staging", "production"] = Field(
+    app_env: Literal["development", "test", "staging", "production"] = Field(
         default="development",
         description="Ambiente de execução. Controla logs, HSTS, etc.",
     )

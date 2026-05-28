@@ -1,11 +1,14 @@
-# Dependências usadas apenas em desenvolvimento.
-# Instaladas no target `dev` do Dockerfile e dentro do devcontainer.
+# Dependências de desenvolvimento (target `dev` do Dockerfile / devcontainer).
 # NÃO entram na imagem `prod` que vai para o EKS.
-
--r requirements.txt
+#
+# Inclui requirements-test.txt para que o ambiente de DEV também consiga rodar
+# a suíte de testes (pytest) — o aluno testa sem sair do devcontainer.
+-r requirements-test.txt
 
 debugpy>=1.8,<2.0      # debugger remoto para "Attach" do VS Code (porta 5678)
 ipdb>=0.13,<1.0        # REPL/pdb melhorado para depuração interativa
 ruff>=0.5,<1.0         # linter + formatter rápido (substitui flake8 + black)
-watchfiles>=0.21,<1.0  # hot-reload mais ágil para o uvicorn --reload
-httpx>=0.27,<1.0       # cliente HTTP usado para testar a API manualmente
+mypy>=1.10,<2.0        # type checker estático
+pre-commit>=3.7,<4.0   # hooks de git
+rich>=13.0,<14.0       # saída colorida em prints/logs
+watchfiles>=0.21,<1.0  # hot-reload mais ágil para o uvicorn
