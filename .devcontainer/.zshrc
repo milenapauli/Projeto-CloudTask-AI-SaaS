@@ -89,7 +89,9 @@ alias whoaws='aws sts get-caller-identity 2>/dev/null || echo "(sem credencial A
 _cloudtask_transient_accept() {
     local _ORIG_PROMPT="$PROMPT"
     local _ORIG_RPROMPT="$RPROMPT"
-    PROMPT='> '
+    # `%F{8}` = cinza (subdued), `%D{...}` = data/hora pelo zsh.
+    # Formato: [YYYY-MM-DD HH:MM:SS] > comando
+    PROMPT='%F{8}[%D{%Y-%m-%d %H:%M:%S}]%f > '
     RPROMPT=''
     zle reset-prompt
     PROMPT="$_ORIG_PROMPT"
