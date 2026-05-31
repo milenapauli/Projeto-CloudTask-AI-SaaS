@@ -159,7 +159,12 @@
           "**/.ruff_cache": true
         },
         // Usa o zsh (com oh-my-zsh) no terminal integrado do VS Code.
-        "terminal.integrated.defaultProfile.linux": "zsh"
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        // Shell integration: necessário para o sticky scroll funcionar (linha
+        // do comando fica fixa no topo quando a saída é longa).
+        "terminal.integrated.shellIntegration.enabled": true,
+        "terminal.integrated.stickyScroll.enabled": true,
+        "terminal.integrated.shellIntegration.decorationsEnabled": "both"
       }
     }
   },

@@ -47,6 +47,16 @@ plugins=(
 
 source "$ZSH/oh-my-zsh.sh"
 
+# ----- VS Code: shell integration -------------------------------------------
+# Habilita o "sticky scroll" (linha do comando fica fixa no topo enquanto
+# rolamos a saída longa), decorações de prompt/exit code e command markers.
+# POR QUÊ o source manual: às vezes a auto-injeção do VS Code não roda em
+# devcontainers que customizam o shell — `code --locate-shell-integration-path`
+# devolve o caminho do script e o sourcemos uma vez.
+if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code &>/dev/null; then
+    . "$(code --locate-shell-integration-path zsh)" 2>/dev/null
+fi
+
 # ----- Histórico de comandos -------------------------------------------------
 # As setas ↑/↓ navegam no histórico e ←/→ movem dentro do comando (zsh já faz
 # isso por padrão). Guardamos o histórico em /commandhistory (volume), então
