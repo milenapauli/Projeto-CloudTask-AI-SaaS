@@ -5,9 +5,9 @@
 
 <!-- Título e breve descrição do repositório -->
 <div align="center">
-  <h1>CloudTask AI SaaS — Semana 2 (Aulas 3 e 4)</h1>
-  <p><b>Branch <code>semana-02-rds-vpc-seguranca</code> — cobre as Aulas 3 e 4.</b></p>
-  <p>API FastAPI + <b>PostgreSQL + CRUD</b> (Aula 3) e <b>config por <code>.env</code>, readiness probe e HTTPS</b> (Aula 4).</p>
+  <h1>CloudTask AI SaaS — Semana 3 (Aulas 5 e 6)</h1>
+  <p><b>Branch <code>semana-03-s3-kubernetes</code> — cobre as Aulas 5 e 6.</b></p>
+  <p>API FastAPI + PostgreSQL + CRUD agora com <b>upload de arquivos (S3 ou local)</b> (Aula 5) e <b>Kubernetes local com Kind</b> (Aula 6, a vir).</p>
 </div>
 
 <p align="center">
@@ -19,222 +19,114 @@
   +
   <a href="https://www.postgresql.org/" title="PostgreSQL"><img src="https://github.com/get-icon/geticon/raw/master/icons/postgresql.svg" alt="PostgreSQL" height="21px"></a>
   +
-  <a href="https://www.sqlalchemy.org/" title="SQLAlchemy">SQLAlchemy</a>
+  <a href="https://aws.amazon.com/s3/" title="Amazon S3">Amazon S3</a>
+  +
+  <a href="https://kubernetes.io/" title="Kubernetes">Kubernetes</a>
 </p>
 
 ## O que foi feito nesta semana
 
-Esta branch contém **as duas aulas da Semana 2**. Abaixo, o que cada aula entregou.
+Esta branch contém **as duas aulas da Semana 3**. Abaixo, o que cada aula entregou.
 
-### Aula 3 — Persistência com PostgreSQL e CRUD de tarefas
+### Aula 5 — Upload de arquivos (Amazon S3 + fallback local)
 
-- Serviço **`db` (PostgreSQL 16-alpine)** no `docker-compose.yml` — mesma engine do Amazon RDS, com healthcheck e `depends_on: service_healthy`.
-- Camada de dados em `app/db/`:
-  - `database.py` — engine, `SessionLocal`, `Base`, dependência `get_db`.
-  - `models.py` — modelo `Task` + enums `TaskStatus` / `TaskPriority` (timestamps carimbados pelo banco).
-  - `schemas.py` — `TaskCreate`, `TaskUpdate`, `TaskRead` (Pydantic, com exemplos no Swagger).
-- `app/api/routes_tasks.py` — **CRUD completo** (`POST/GET/GET{id}/PUT/DELETE /tasks`).
-- Criação automática das tabelas no startup (via `lifespan`).
+- `app/services/s3_service.py` — dois backends com a **mesma interface**:
+  - `LocalStorage` (default): grava em `LOCAL_UPLOADS_DIR` no container.
+  - `S3Storage`: envia para o bucket `S3_BUCKET_NAME` (boto3).
+  - `get_storage()` escolhe um ou outro a partir de `STORAGE_MODE`.
+- `app/api/routes_uploads.py`:
+  - `POST /uploads` — recebe `multipart/form-data`, devolve nome + URL.
+  - `GET /uploads/{filename}` — local serve do disco; S3 redireciona para URL pré-assinada.
+- Limite de **10 MB** por arquivo (config didática).
+- Nome de arquivo armazenado é **sanitizado** (sem `..`, com sufixo único) — evita path traversal.
+- `app/schemas.py` ganhou `UploadResponse` com exemplos no Swagger.
+- `app/core/config.py` ganhou `STORAGE_MODE`, `LOCAL_UPLOADS_DIR`, `AWS_REGION`, `S3_BUCKET_NAME`, `S3_ENDPOINT_URL` (opcional), `S3_PRESIGNED_URL_EXPIRES`.
+- Testes (`tests/test_uploads.py`): fluxo feliz, 404, 413, 422, extensão preservada.
+- `docs/s3-efs-datalake.md` — guia didático S3 × EFS × Data Lake.
 
-### Aula 4 — Config por ambiente, segurança, HTTPS e readiness
+### Aula 6 — Kubernetes local com Kind (a vir)
 
-- `app/core/config.py` — configuração central com **pydantic-settings** (lê `.env` / variáveis de ambiente, valida tipos).
-- `GET /health/ready` — **readiness probe** que faz `SELECT 1` no PostgreSQL (`200` pronto / `503` banco fora). `GET /health` permanece **liveness puro** (não toca no banco).
-- **HTTPS / transporte:**
-  - `uvicorn --proxy-headers` no `Dockerfile` (confia no `X-Forwarded-Proto` do ALB).
-  - **HSTS** enviado quando `FORCE_HTTPS=true` e fora de `development` (sem `preload`).
-  - `TrustedHostMiddleware` (hosts via `TRUSTED_HOSTS`).
-  - `HTTPSRedirectMiddleware` só no caso sem proxy (`FORCE_HTTPS=true` e `BEHIND_PROXY=false`).
-- Docs de segurança: `docs/https-tls.md`, `docs/aws-networking.md`, `docs/security-model.md`.
-- `.env.example` cobre `FORCE_HTTPS`, `BEHIND_PROXY`, `TRUSTED_HOSTS`.
+Manifests em `infra/k8s/` (namespace, deployment, service, configmap, secret.example).
+Rodar local com **Kind** ou **Minikube** no host (não no devcontainer).
 
-Versão da API ao fim da semana: **`0.2.0`**.
+Versão da API ao fim da semana: **`0.3.0`**.
 
-### Base herdada da Semana 1
-FastAPI mínimo (`/`, `/health`), Dockerfile multi-target, Docker Compose e devcontainer já vieram da Semana 1 (branch `semana-01-fastapi-docker`).
+### Base herdada das semanas anteriores
+FastAPI + PostgreSQL + CRUD, config `.env`, HTTPS preparado, readiness probe,
+testes (transação + savepoint), docker-compose dev/prod/test, devcontainer com
+zsh + sticky scroll + transient prompt + AWS CLI, kubectl, eksctl, Node+CDK,
+docker-outside-of-docker.
 
-> Todo o código vem com **comentários didáticos** explicando motivo, impacto e risco de cada decisão.
+> Todo o código vem com **comentários didáticos** explicando motivo, impacto e
+> risco de cada decisão.
 
 ## Endpoints
 
-| Método | Caminho            | Descrição                              |
-| ------ | ------------------ | -------------------------------------- |
-| GET    | `/`                | Metadados da aplicação.                |
-| GET    | `/health`          | Liveness probe (não toca no banco).    |
-| GET    | `/health/ready`    | Readiness probe (checa o PostgreSQL).  |
-| POST   | `/tasks`           | Criar tarefa (201).                    |
-| GET    | `/tasks`           | Listar tarefas (paginação `skip`/`limit`). |
-| GET    | `/tasks/{task_id}` | Obter tarefa por id (404 se não existe). |
-| PUT    | `/tasks/{task_id}` | Atualizar tarefa (parcial).            |
-| DELETE | `/tasks/{task_id}` | Remover tarefa (204).                  |
-| GET    | `/docs`            | Swagger UI.                            |
-
-### Modelo `Task`
-
-```text
-id           int        (gerado pelo banco)
-title        str        (obrigatório, 1–200 chars)
-description  str | null  (até 2000 chars)
-status       enum        pending | in_progress | done   (default pending)
-priority     enum        low | medium | high            (default medium)
-created_at   datetime    (carimbado pelo banco)
-updated_at   datetime    (atualizado pelo banco a cada PUT)
-```
-
-## Pré-requisitos
-
-| Ferramenta              | Versão mínima | Para quê                       |
-| ----------------------- | ------------- | ------------------------------ |
-| Docker Desktop          | 4.30          | API + PostgreSQL em containers |
-| VS Code + Dev Containers| 1.90 / 0.380  | Abrir o projeto no container   |
-
-> Nunca usou terminal/Docker? Veja [`docs/aws-academy-setup.md`](docs/aws-academy-setup.md).
+| Método | Caminho               | Descrição |
+| ------ | --------------------- | --------- |
+| GET    | `/`                   | Metadados da aplicação. |
+| GET    | `/health`             | Liveness probe. |
+| GET    | `/health/ready`       | Readiness (checa o PostgreSQL). |
+| POST   | `/tasks`              | Criar tarefa (201). |
+| GET    | `/tasks`              | Listar (paginação `skip`/`limit`). |
+| GET    | `/tasks/{task_id}`    | Obter por id (404). |
+| PUT    | `/tasks/{task_id}`    | Atualizar parcial. |
+| DELETE | `/tasks/{task_id}`    | Remover (204). |
+| **POST** | **`/uploads`**          | **Enviar arquivo (multipart, 201)** |
+| **GET**  | **`/uploads/{filename}`** | **Baixar (200) ou redirect S3 (307)** |
+| GET    | `/docs`               | Swagger UI. |
 
 ## Como rodar
 
-### 1) Devcontainer no VS Code (recomendado)
+### Devcontainer (recomendado)
+`F1` → "Dev Containers: Reopen in Container". A API sobe sozinha em
+`http://localhost:8000/docs`.
 
-```text
-1. F1 → "Dev Containers: Rebuild and Reopen in Container".
-   (Rebuild porque o compose agora tem o serviço `db`.)
-2. O VS Code sobe API + PostgreSQL juntos.
-3. Terminal integrado:  uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-4. Abra http://localhost:8000/docs
+### Modo local (default — sem AWS)
+```bash
+# upload (qualquer arquivo)
+curl -F "file=@README.md" http://localhost:8000/uploads
+# resposta: {"filename":"abcd1234-...md","url":"/uploads/abcd...md","storage_mode":"local"}
+
+# download
+curl -O http://localhost:8000/uploads/abcd1234-...md
 ```
 
-### 2) Docker Compose direto
+### Modo S3 (precisa de credenciais AWS)
+```bash
+# 1. criar bucket (uma vez)
+aws s3 mb s3://cloudtask-ai-saas-uploads-SEU-NOME --region us-east-1
+
+# 2. configurar .env
+echo "STORAGE_MODE=s3" >> .env
+echo "S3_BUCKET_NAME=cloudtask-ai-saas-uploads-SEU-NOME" >> .env
+
+# 3. recriar container e testar
+docker compose down && docker compose up -d
+curl -F "file=@README.md" http://localhost:8000/uploads
+# resposta agora traz URL pré-assinada do S3
+```
+
+## Testes
 
 ```bash
-docker compose up --build           # sobe API + PostgreSQL
-curl http://localhost:8000/tasks    # deve responder []
-docker compose down                 # para (mantém os dados)
-docker compose down -v              # para e ZERA o banco
+pytest -v
 ```
-
-> ⚠️ Se a porta **5432** já estiver ocupada na sua máquina, defina
-> `POSTGRES_PORT=5433` (ou outra livre) no seu `.env` antes de subir.
-
-### Testando o CRUD pelo terminal
-
-```bash
-# criar
-curl -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Minha primeira tarefa","priority":"high"}'
-
-# listar
-curl http://localhost:8000/tasks
-
-# atualizar (id 1)
-curl -X PUT http://localhost:8000/tasks/1 \
-  -H "Content-Type: application/json" -d '{"status":"done"}'
-
-# remover (id 1)
-curl -X DELETE http://localhost:8000/tasks/1
-```
-
-## Conexão com o banco
-
-`DATABASE_URL` (lida do ambiente; default no compose):
-
-```text
-postgresql+psycopg2://cloudtask:cloudtask@db:5432/cloudtask
-```
-
-O host `db` é o nome do serviço no Compose. Esta **mesma URL** servirá para o
-Amazon RDS na nuvem — só muda o host/usuário/senha (via Secret). Por isso
-usamos PostgreSQL 16 local, igual ao RDS.
-
-## Testes (unitários + integração)
-
-A suíte de testes cobre schemas, configuração, endpoints de saúde e o CRUD
-completo contra um PostgreSQL. Os arquivos ficam em [`tests/`](tests/) e estão
-disponíveis tanto no container de **dev** quanto no de **test**.
-
-### Opção A — dentro do devcontainer (mais simples)
-
-O devcontainer já traz o `pytest`. No terminal integrado do VS Code:
-
-```bash
-pytest                 # roda todos os testes
-pytest -v              # modo verboso (lista cada teste)
-pytest tests/test_tasks_crud.py     # só um arquivo
-pytest -k crud         # só testes cujo nome casa com "crud"
-pytest --cov=app       # com relatório de cobertura
-```
-
-> Os testes usam um banco **separado** (`cloudtask_test`), criado
-> automaticamente. Seus dados de desenvolvimento (`cloudtask`) **não** são
-> tocados.
-
-### Opção B — container de testes isolado (igual ao CI)
-
-Sobe uma imagem `test` + um PostgreSQL efêmero, roda a suíte e sai. Use um
-*project name* separado (`-p cloudtask-test`) para **não colidir** com o seu
-devcontainer:
-
-```bash
-# rodar a suíte
-docker compose -p cloudtask-test \
-  -f docker-compose.yml -f docker-compose.test.yml \
-  run --rm api
-
-# limpar tudo depois
-docker compose -p cloudtask-test \
-  -f docker-compose.yml -f docker-compose.test.yml down -v
-```
-
-### O que cada arquivo de teste cobre
-
-| Arquivo | Tipo | Cobre |
-| --- | --- | --- |
-| `tests/test_schemas.py` | unitário | validação dos schemas Pydantic (defaults, título vazio, enums) |
-| `tests/test_config.py` | unitário | parsing do `.env` (TRUSTED_HOSTS CSV, `FORCE_HTTPS` bool) |
-| `tests/test_health.py` | integração | `/`, `/health` (liveness) e `/health/ready` (200 e 503) |
-| `tests/test_tasks_crud.py` | integração | CRUD completo de `/tasks` + erros 404/422 |
-
-## Entendendo o Docker do projeto
-
-Quer saber o que são `cloudtask-api:dev` / `:prod` / `:test`, como o
-`Dockerfile` multi-stage funciona e a diferença entre os três arquivos de
-Compose? Veja o guia: [`docs/docker-explained.md`](docs/docker-explained.md).
-
-Resumo rápido:
-
-| Imagem | Para quê | Onde aparece |
-| --- | --- | --- |
-| `cloudtask-api:dev` | desenvolver (hot-reload, debug) | devcontainer, `docker-compose.yml` |
-| `cloudtask-api:test` | rodar `pytest` | `docker-compose.test.yml`, CI |
-| `cloudtask-api:prod` | produção enxuta | `docker-compose.prod.yml`, ECR/EKS |
-
-## Conhecendo a aplicação (passo a passo)
-
-1. Abra o devcontainer (`F1 → Dev Containers: Reopen in Container`). A API sobe
-   sozinha.
-2. Acesse o **Swagger**: <http://localhost:8000/docs> — clique em **Try it out**
-   em qualquer rota para chamá-la pelo navegador.
-3. Veja os metadados: <http://localhost:8000/> e a saúde:
-   <http://localhost:8000/health> e <http://localhost:8000/health/ready>.
-4. Crie tarefas pelo Swagger (`POST /tasks`) ou pelo `curl` (seção acima).
-5. Veja os logs da API: `docker compose logs -f api`.
-6. Entre no banco: `docker compose exec db psql -U cloudtask cloudtask` e rode
-   `SELECT * FROM tasks;`.
-7. Rode os testes: `pytest -v`.
+41 testes (5 novos de upload). Mode S3 não tem teste automatizado (depende de
+credenciais reais ou LocalStack); validar manualmente.
 
 ## O que vem na próxima aula
 
-- **Semana 3 (branch `semana-03-s3-kubernetes`):** upload de arquivos com Amazon S3
-  (com fallback local) e Kubernetes local com Kind. Versão sobe para `0.3.0`.
+- **Aula 6 (mesma branch):** Kubernetes local com **Kind**. Manifests `namespace.yaml`, `deployment.yaml`, `service.yaml`, `configmap.yaml`, `secret.example.yaml`. Cluster e `kubectl` rodam **no HOST**, não no devcontainer.
 
 ## Referências
 
-- Issue da aula: [#4 — Aula 4](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/4)
+- Issue da aula: [#5 — Aula 5](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/5)
 - Lista de tarefas: [`docs/TAREFAS.md`](docs/TAREFAS.md)
-- Guia geral: [`docs/HOW_TO_USE.md`](docs/HOW_TO_USE.md)
 - Setup do zero: [`docs/aws-academy-setup.md`](docs/aws-academy-setup.md)
+- **S3 explicado**: [`docs/s3-efs-datalake.md`](docs/s3-efs-datalake.md)
 - Segurança: [`docs/security-model.md`](docs/security-model.md) · [`docs/aws-networking.md`](docs/aws-networking.md) · [`docs/https-tls.md`](docs/https-tls.md)
-- Docker explicado: [`docs/docker-explained.md`](docs/docker-explained.md)
-- SQLAlchemy 2.0: <https://docs.sqlalchemy.org/en/20/>
+- Docker: [`docs/docker-explained.md`](docs/docker-explained.md)
 
 ## Licença
 

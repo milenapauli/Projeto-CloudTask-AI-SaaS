@@ -35,7 +35,7 @@ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
-from app.api import routes_health, routes_tasks
+from app.api import routes_health, routes_tasks, routes_uploads
 from app.core.config import settings
 from app.db.database import Base, engine
 from app.schemas import RootResponse
@@ -48,10 +48,10 @@ APP_DESCRIPTION = """\
 Mini **SaaS de gerenciamento de tarefas** construído ao longo da disciplina
 **Computação em Nuvem** (N-CPU / UNINTER).
 
-Esta é a versão da **Semana 2** (versão `0.2.0`): além da base da Semana 1
-(FastAPI + Docker + devcontainer), adicionamos **PostgreSQL** + **CRUD de
-tarefas** (`/tasks`), **configuração por `.env`**, **readiness probe**
-(`/health/ready`) e preparação de **HTTPS** (proxy-headers + HSTS).
+Esta é a versão da **Semana 3** (versão `0.3.0`): além da base das semanas
+anteriores, adicionamos **upload de arquivos** (`/uploads`) com dois backends
+intercambiáveis — **Amazon S3** ou disco **local** — e Kubernetes local com
+**Kind**.
 
 ### Status do projeto
 
@@ -61,8 +61,8 @@ tarefas** (`/tasks`), **configuração por `.env`**, **readiness probe**
 | Semana | Branch                          | Tema                                                          |
 | -----: | :------------------------------ | :------------------------------------------------------------ |
 |      1 | `semana-01-fastapi-docker`      | FastAPI mínimo, Docker e Docker Compose, devcontainer         |
-| <kbd>2</kbd> ← *você está aqui* | `semana-02-rds-vpc-seguranca`   | PostgreSQL + CRUD, config `.env`, HTTPS, docs de VPC/IAM      |
-|      3 | `semana-03-s3-kubernetes`       | Upload S3 (com fallback local), Kubernetes local (Kind)       |
+|      2 | `semana-02-rds-vpc-seguranca`   | PostgreSQL + CRUD, config `.env`, HTTPS, docs de VPC/IAM      |
+| <kbd>3</kbd> ← *você está aqui* | `semana-03-s3-kubernetes`       | Upload S3 (com fallback local), Kubernetes local (Kind)       |
 |      4 | `semana-04-eks-aws`             | Build/push para ECR, deploy no EKS                            |
 |      5 | `semana-05-custos-nosql-logs`   | HPA + teste de carga + Cost Explorer, eventos com DynamoDB    |
 |      6 | `semana-06-cdk-final`           | AWS CDK (S3, ECR, VPC), docs finais e checklist LGPD          |
@@ -72,10 +72,11 @@ tarefas** (`/tasks`), **configuração por `.env`**, **readiness probe**
 - <span style="color:#0ea5e9">**meta**</span> — metadados da aplicação.
 - <span style="color:#16a34a">**health**</span> — endpoints de saúde para orquestradores.
 - <span style="color:#f59e0b">**tasks**</span> — CRUD de tarefas (PostgreSQL).
+- <span style="color:#a855f7">**uploads**</span> — arquivos (S3 ou disco local).
 
 ### Links úteis
 
-- [Issue mais recente (Aula 4)](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/4)
+- [Issue mais recente (Aula 5)](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/5)
 - [Roadmap completo](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/blob/main/docs/ROADMAP.md)
 - [Lista de tarefas (`docs/TAREFAS.md`)](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/blob/main/docs/TAREFAS.md)
 
@@ -182,12 +183,17 @@ app = FastAPI(
             "name": "tasks",
             "description": "CRUD de tarefas, persistidas em PostgreSQL.",
         },
+        {
+            "name": "uploads",
+            "description": "Upload e download de arquivos (S3 ou disco local).",
+        },
     ],
 )
 
 # Registra os routers na aplicação.
 app.include_router(routes_health.router)
 app.include_router(routes_tasks.router)
+app.include_router(routes_uploads.router)
 
 
 # ---------------------------------------------------------------------------

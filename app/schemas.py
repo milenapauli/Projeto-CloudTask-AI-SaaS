@@ -46,6 +46,42 @@ class HealthResponse(BaseModel):
     )
 
 
+class UploadResponse(BaseModel):
+    """Resposta do endpoint :func:`app.api.routes_uploads.create_upload`.
+
+    Atributos:
+        filename: Nome do arquivo armazenado (gerado pelo backend, único).
+        url: Caminho/URL para baixar o arquivo. No modo local é uma rota da
+            própria API (``/uploads/<filename>``); no modo S3 é uma URL
+            pré-assinada com tempo de expiração.
+        storage_mode: Backend que recebeu o arquivo (``local`` ou ``s3``).
+
+    Example:
+        >>> UploadResponse(
+        ...     filename="abcd1234-deadbeef.txt",
+        ...     url="/uploads/abcd1234-deadbeef.txt",
+        ...     storage_mode="local",
+        ... ).model_dump()
+        {'filename': 'abcd1234-deadbeef.txt', 'url': '/uploads/abcd1234-deadbeef.txt', 'storage_mode': 'local'}
+    """
+
+    filename: str = Field(..., examples=["abcd1234-deadbeef.txt"])
+    url: str = Field(..., examples=["/uploads/abcd1234-deadbeef.txt"])
+    storage_mode: Literal["local", "s3"] = Field(..., examples=["local"])
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "filename": "abcd1234-deadbeef.txt",
+                    "url": "/uploads/abcd1234-deadbeef.txt",
+                    "storage_mode": "local",
+                }
+            ]
+        }
+    )
+
+
 class ReadyResponse(BaseModel):
     """Resposta do endpoint :func:`app.api.routes_health.ready` (readiness).
 

@@ -10,6 +10,12 @@ pydantic>=2.7,<3.0
 # pydantic-settings: lê .env / variáveis de ambiente e valida tipos (BaseSettings).
 pydantic-settings>=2.3,<3.0
 
+# --- Aula 5: uploads (S3 + fallback local) ---
+# python-multipart: necessário para o FastAPI receber multipart/form-data.
+python-multipart>=0.0.9,<1.0
+# boto3: SDK oficial da AWS para Python. Só é usado quando STORAGE_MODE=s3.
+boto3>=1.34,<2.0
+
 # --- Aula 3: banco de dados (PostgreSQL) ---
 # sqlalchemy: ORM — mapeia classes Python <-> tabelas SQL.
 sqlalchemy>=2.0,<3.0

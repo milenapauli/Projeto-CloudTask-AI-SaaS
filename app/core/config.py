@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     #   POR QUÊ: se o app também redirecionasse, as health probes internas
     #   (que chegam em HTTP) entrariam em loop -> pod marcado "unhealthy".
     behind_proxy: bool = Field(default=True)
+    # --- Storage / Uploads (Aula 5 em diante) -------------------------------
+    # `local`: salva arquivos em disco (LOCAL_UPLOADS_DIR).
+    # `s3`   : envia para o bucket S3 configurado.
+    # POR QUÊ permitir os dois modos: o aluno consegue completar a aula SEM AWS
+    # (modo local) e só liga o S3 quando tiver as credenciais do Learner Lab.
+    storage_mode: Literal["local", "s3"] = Field(default="local")
+    local_uploads_dir: str = Field(default="./local_uploads")
+
+    # Quando `storage_mode=s3`:
+    aws_region: str = Field(default="us-east-1")
+    s3_bucket_name: str = Field(default="cloudtask-ai-saas-uploads")
+    # Endpoint customizado, útil para LocalStack (não usado no curso). Vazio = AWS real.
+    s3_endpoint_url: str = Field(default="")
+    # URL pré-assinada: tempo de validade (segundos) do link de download.
+    s3_presigned_url_expires: int = Field(default=900, ge=60, le=86400)
+
     # Hosts aceitos pelo TrustedHostMiddleware. "*" = qualquer host (dev).
     #   Em produção, liste o domínio real para mitigar Host header spoofing.
     #
