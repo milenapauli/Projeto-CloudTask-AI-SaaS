@@ -26,6 +26,7 @@ Texto explicativo. Pouco ou nenhum comando para rodar. Leia antes (ou durante) a
 | [`conceitos/security-model.md`](conceitos/security-model.md) | 4 | IAM, MFA, responsabilidade compartilhada, criptografia, LGPD |
 | [`conceitos/https-tls.md`](conceitos/https-tls.md) | 4 | TLS, ALB, HSTS, mkcert local, proxy-headers |
 | [`conceitos/s3-efs-datalake.md`](conceitos/s3-efs-datalake.md) | 5 | S3 × EFS × EBS, classes, URL pré-assinada, Data Lake |
+| [`conceitos/infra-aws-minima-por-semana.md`](conceitos/infra-aws-minima-por-semana.md) | 4+ | Stack AWS mínima por semana, custos, Postgres container × RDS, ECS × EKS |
 
 ---
 
@@ -44,6 +45,7 @@ Tutoriais com comandos. Cada arquivo é um exercício prático que você pode (e
 | [`praticas/06-uploads-modo-s3.md`](praticas/06-uploads-modo-s3.md) | Criar bucket S3, trocar `.env`, validar URL pré-assinada |
 | [`praticas/07-rodar-testes.md`](praticas/07-rodar-testes.md) | Rodar `pytest` no devcontainer e em container isolado |
 | [`praticas/08-debug-vscode.md`](praticas/08-debug-vscode.md) | Depurar com breakpoints no VS Code (debugpy attach) |
+| [`praticas/09-deploy-manual-aws.md`](praticas/09-deploy-manual-aws.md) | Deploy manual AWS: ECR, ECS Fargate, EKS, RDS, Secrets Manager, DynamoDB (por semana) |
 | [`praticas/99-troubleshooting.md`](praticas/99-troubleshooting.md) | Erros comuns + como resolver |
 
 > 💡 **Os práticos não dependem todos uns dos outros.** Mas se está perdido,
@@ -75,7 +77,8 @@ docs/
 │   ├── aws-networking.md
 │   ├── security-model.md
 │   ├── https-tls.md
-│   └── s3-efs-datalake.md
+│   ├── s3-efs-datalake.md
+│   └── infra-aws-minima-por-semana.md
 │
 └── praticas/              ← FAZER passo a passo (todo comando)
     ├── 00-setup-inicial-e-aws-academy.md
@@ -87,5 +90,6 @@ docs/
     ├── 06-uploads-modo-s3.md
     ├── 07-rodar-testes.md
     ├── 08-debug-vscode.md
+    ├── 09-deploy-manual-aws.md
     └── 99-troubleshooting.md
 ```
