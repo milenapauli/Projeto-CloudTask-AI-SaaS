@@ -1,0 +1,31 @@
+# =============================================================================
+# api-service.yaml — expõe a API para fora do cluster (Kind local).
+# -----------------------------------------------------------------------------
+# Tipo: `NodePort`. POR QUÊ não LoadBalancer aqui:
+#   * `LoadBalancer` em Kind precisa de um controlador extra (MetalLB)
+#     porque Kind não tem cloud provider que crie ELB de verdade.
+#   * `NodePort` é o caminho mais simples para acesso local: ele expõe
+#     o Service em uma porta alta (30000–32767) do nó. Combinado com
+#     `extraPortMappings` no `kind-config.yaml`, mapeamos essa porta para
+#     o `localhost` do host.
+#
+# Resultado: `curl http://localhost:30080/health` funciona no host.
+# -----------------------------------------------------------------------------
+# Em EKS (Aula 7+) trocamos por `LoadBalancer` (que cria ELB de verdade) ou
+# `ClusterIP` + Ingress (ALB). Aqui não.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: cloudtask
+  labels: { app: api }
+spec:
+  type: NodePort
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 8000          # porta dentro do cluster
+      targetPort: 8000    # porta do container
+      nodePort: 30080     # porta no nó (mapeada para o host pelo kind-config)

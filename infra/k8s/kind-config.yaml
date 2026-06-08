@@ -1,0 +1,21 @@
+# =============================================================================
+# kind-config.yaml — config do cluster Kind local.
+# -----------------------------------------------------------------------------
+# EXTRAportmappings: mapeia portas DO NÓ DO KIND para o HOST.
+# Sem isso, `nodePort: 30080` ficaria acessível só de dentro do cluster.
+#
+# POR QUÊ 1 control-plane + 1 worker:
+#   * Apenas 1 node: didático. Em produção, sempre múltiplos.
+#   * Quem quiser ver a API balanceada entre nós diferentes pode descomentar
+#     o worker extra.
+# =============================================================================
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: cloudtask
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080   # bate com o nodePort do api-service.yaml
+        hostPort: 30080
+        protocol: TCP
+  # - role: worker             # descomente para ter mais 1 nó worker

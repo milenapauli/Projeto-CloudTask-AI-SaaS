@@ -7,7 +7,7 @@
 <div align="center">
   <h1>CloudTask AI SaaS — Semana 3 (Aulas 5 e 6)</h1>
   <p><b>Branch <code>semana-03-s3-kubernetes</code> — cobre as Aulas 5 e 6.</b></p>
-  <p>API FastAPI + PostgreSQL + CRUD agora com <b>upload de arquivos (S3 ou local)</b> (Aula 5) e <b>Kubernetes local com Kind</b> (Aula 6, a vir).</p>
+  <p>API FastAPI + PostgreSQL + CRUD agora com <b>upload de arquivos (S3 ou local)</b> (Aula 5) e <b>Kubernetes local com Kind</b> (Aula 6).</p>
 </div>
 
 <p align="center">
@@ -44,10 +44,19 @@ Esta branch contém **as duas aulas da Semana 3**. Abaixo, o que cada aula entre
 - Testes (`tests/test_uploads.py`): fluxo feliz, 404, 413, 422, extensão preservada.
 - `docs/conceitos/s3-efs-datalake.md` — guia didático S3 × EFS × Data Lake.
 
-### Aula 6 — Kubernetes local com Kind (a vir)
+### Aula 6 — Kubernetes local com Kind
 
-Manifests em `infra/k8s/` (namespace, deployment, service, configmap, secret.example).
-Rodar local com **Kind** ou **Minikube** no host (não no devcontainer).
+- `infra/k8s/` — manifests:
+  - `kind-config.yaml` — cluster Kind de 1 nó com porta `30080` mapeada para o host.
+  - `namespace.yaml` — namespace `cloudtask`.
+  - `configmap.yaml` — config não-sensível (hostname Postgres, STORAGE_MODE).
+  - `secret.example.yaml` — TEMPLATE; copie para `secret.yaml` (gitignored) e preencha.
+  - `postgres-deployment.yaml` + `postgres-service.yaml` — Postgres como Pod (sem volume — didático).
+  - `api-deployment.yaml` — 2 réplicas da API, init container espera Postgres, probes HTTP.
+  - `api-service.yaml` — NodePort `30080`.
+  - `kustomization.yaml` — `kubectl apply -k infra/k8s/` aplica tudo.
+- Roteiro passo a passo: [`docs/praticas/11-kubernetes-kind-local.md`](docs/praticas/11-kubernetes-kind-local.md).
+- **Kind roda no HOST** (não no devcontainer). `kubectl` funciona dos dois lados.
 
 Versão da API ao fim da semana: **`0.3.0`**.
 
@@ -131,16 +140,19 @@ pytest -v
 41 testes (5 novos de upload). Mode S3 não tem teste automatizado (depende de
 credenciais reais ou LocalStack); validar manualmente.
 
-## O que vem na próxima aula
+## O que vem na próxima semana
 
-- **Aula 6 (mesma branch):** Kubernetes local com **Kind**. Manifests `namespace.yaml`, `deployment.yaml`, `service.yaml`, `configmap.yaml`, `secret.example.yaml`. Cluster e `kubectl` rodam **no HOST**, não no devcontainer.
+- **Semana 4 — Aula 7 (`semana-04-eks-aws`):** Push da imagem para o **ECR**, deploy em **EKS** real (Learner Lab). Veja [`docs/praticas/09-deploy-manual-aws.md`](docs/praticas/09-deploy-manual-aws.md) (§3 a §6).
 
 ## Referências
 
-- Issue da aula: [#5 — Aula 5](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/5)
+- Issues da semana: [#5 — Aula 5](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/5) · [#6 — Aula 6](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/issues/6)
 - Lista de tarefas: [`docs/TAREFAS.md`](docs/TAREFAS.md)
 - Setup do zero: [`docs/praticas/00-setup-inicial-e-aws-academy.md`](docs/praticas/00-setup-inicial-e-aws-academy.md)
 - **S3 explicado**: [`docs/conceitos/s3-efs-datalake.md`](docs/conceitos/s3-efs-datalake.md)
+- **Kubernetes Kind**: [`docs/praticas/11-kubernetes-kind-local.md`](docs/praticas/11-kubernetes-kind-local.md) + manifests em `infra/k8s/`
+- **Stack AWS por semana** (custos, Postgres container × RDS, ECS × EKS): [`docs/conceitos/infra-aws-minima-por-semana.md`](docs/conceitos/infra-aws-minima-por-semana.md)
+- **Deploy manual AWS** (ECR, Fargate, EKS, RDS, Secrets Manager): [`docs/praticas/09-deploy-manual-aws.md`](docs/praticas/09-deploy-manual-aws.md)
 - Segurança: [`docs/conceitos/security-model.md`](docs/conceitos/security-model.md) · [`docs/conceitos/aws-networking.md`](docs/conceitos/aws-networking.md) · [`docs/conceitos/https-tls.md`](docs/conceitos/https-tls.md)
 - Docker: [`docs/conceitos/docker-explained.md`](docs/conceitos/docker-explained.md)
 

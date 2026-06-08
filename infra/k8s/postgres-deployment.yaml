@@ -1,0 +1,79 @@
+# =============================================================================
+# postgres-deployment.yaml — Postgres como Pod no cluster Kind.
+# -----------------------------------------------------------------------------
+# DIDÁTICO: rodar BD como Pod, sem volume persistente. Funciona, mas:
+#   * Reiniciar o Pod = perde tudo (mesma lição do Fargate, §4B da prática 09).
+#   * Sem backup automático, sem snapshots, sem HA.
+#   * Em produção use RDS (Aula 8/9) ou um StatefulSet + PVC + storage class.
+#
+# DECISÃO: `Deployment` com `replicas: 1`. Postgres NÃO escala
+# horizontalmente sem replicação — múltiplos Pods escrevendo no mesmo
+# storage corromperia dados. Mais réplicas só se houver storage cluster
+# real (não é o caso aqui).
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: cloudtask
+  labels: { app: postgres, component: database }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  strategy:
+    # Recreate (não RollingUpdate): com 1 réplica e sem PVC, não faz sentido
+    # tentar manter um Pod novo + velho juntos — só vai dar conflito de porta.
+    type: Recreate
+  template:
+    metadata:
+      labels: { app: postgres, component: database }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: pg
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: cloudtask-secrets, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: cloudtask-secrets, key: POSTGRES_PASSWORD }
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef: { name: cloudtask-config, key: POSTGRES_DB }
+            # PGDATA dentro do `emptyDir` montado em /var/lib/postgresql/data.
+            # `emptyDir` zera ao reiniciar o Pod. INTENCIONAL, didático.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+
+          # Probes simples baseadas no `pg_isready`.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+
+          # Resources sob controle (Kind é apertado de memória).
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+
+          # Storage efêmero. POR QUÊ explicar isso: alunos esperam que dados
+          # sobrevivam ao restart — e ficarão surpresos quando não sobreviverem.
+          # É a deixa para a aula sobre PV/PVC e RDS.
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+
+      volumes:
+        - name: pgdata
+          emptyDir: {}

@@ -1,0 +1,15 @@
+# =============================================================================
+# namespace.yaml — separa os recursos da aplicação em um namespace dedicado.
+# -----------------------------------------------------------------------------
+# POR QUÊ usar um namespace: isolamento lógico. Tudo da CloudTask vive em
+# `cloudtask`, sem colidir com `kube-system` (componentes do cluster) ou com
+# o `default`. Em produção real é a fronteira mínima para aplicar quotas,
+# limites e políticas de rede.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudtask
+  labels:
+    app.kubernetes.io/name: cloudtask
+    app.kubernetes.io/part-of: cloudtask-ai-saas

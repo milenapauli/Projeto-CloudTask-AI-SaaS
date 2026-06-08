@@ -1,0 +1,90 @@
+# =============================================================================
+# api-deployment.yaml — API FastAPI no cluster Kind.
+# -----------------------------------------------------------------------------
+# DECISÕES principais:
+#   * 2 réplicas: didático para ver o Service balanceando entre Pods.
+#   * RollingUpdate: deploy novo levanta Pods novos antes de derrubar os
+#     velhos — zero downtime (com stateless apps como esta).
+#   * Image `cloudtask-api:dev` LOCAL — carregamos no Kind com
+#     `kind load docker-image cloudtask-api:dev`. POR QUÊ não puxar do ECR aqui:
+#     Aula 6 é local. Aula 7 muda para ECR.
+#   * `imagePullPolicy: IfNotPresent`: garante que ele USE a imagem carregada
+#     pelo `kind load` em vez de tentar puxar do Docker Hub.
+#   * `command` MANTÉM o CMD da imagem dev (uvicorn --reload). POR QUÊ:
+#     padronizar com o que o devcontainer já faz; código vem da imagem,
+#     não há volume.
+#
+# DATABASE_URL: composta a partir do Secret (user, password) e ConfigMap
+# (host, db). Mostra ao aluno os DOIS objetos em ação.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: cloudtask
+  labels: { app: api, component: backend }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels: { app: api, component: backend }
+    spec:
+      # Espera o Postgres responder antes de subir a API (initContainer).
+      # POR QUÊ: a App roda `create_all` no startup; se Postgres ainda não
+      # estiver pronto, o Pod entra em CrashLoopBackOff. O initContainer
+      # bloqueia até o `pg_isready` retornar OK.
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - >-
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER";
+              do echo "esperando postgres..."; sleep 2; done;
+              echo "postgres pronto."
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef: { name: cloudtask-secrets, key: POSTGRES_USER }
+      containers:
+        - name: api
+          image: cloudtask-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: cloudtask-config
+            - secretRef:
+                name: cloudtask-secrets
+
+          # Probes HTTP. POR QUÊ separar liveness e readiness:
+          #   * livenessProbe → "está vivo?"  Se falhar, K8s mata e recria.
+          #   * readinessProbe → "está pronto para receber tráfego?" Falhar
+          #     aqui apenas tira o Pod do Service (não reinicia). Bom para
+          #     warm-up.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+
+          resources:
+            requests: { cpu: "100m", memory: "128Mi" }
+            limits:   { cpu: "500m", memory: "256Mi" }

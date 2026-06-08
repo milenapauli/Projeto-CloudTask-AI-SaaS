@@ -1,0 +1,24 @@
+# =============================================================================
+# postgres-service.yaml — endereço estável (DNS) para os Pods do Postgres.
+# -----------------------------------------------------------------------------
+# Tipo `ClusterIP` (default): só os Pods de DENTRO do cluster enxergam.
+# DNS interno gerado: `postgres.cloudtask.svc.cluster.local` (resolvido como
+# `postgres` dentro do mesmo namespace).
+#
+# POR QUÊ o `selector` aponta para `app: postgres`: o Service "encontra"
+# Pods que tenham essa label e roteia tráfego para eles round-robin.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: cloudtask
+  labels: { app: postgres }
+spec:
+  type: ClusterIP
+  selector:
+    app: postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: 5432

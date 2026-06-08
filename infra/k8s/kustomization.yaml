@@ -1,0 +1,22 @@
+# =============================================================================
+# kustomization.yaml — `kubectl apply -k infra/k8s/` aplica todos os manifests
+# na ordem certa.
+# -----------------------------------------------------------------------------
+# POR QUÊ Kustomize (já vem com o kubectl): organiza, valida ordem e permite
+# overlays no futuro (ex.: kustomization separado para EKS sem mudar os
+# arquivos base).
+#
+# Não inclui secret.example.yaml — esse é apenas template; o real é
+# secret.yaml (gitignored) ou aplicado via `kubectl create secret`.
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  # - secret.yaml          # crie a partir do secret.example.yaml; gitignored
+  - postgres-deployment.yaml
+  - postgres-service.yaml
+  - api-deployment.yaml
+  - api-service.yaml

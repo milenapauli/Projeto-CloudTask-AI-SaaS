@@ -46,6 +46,7 @@ Tutoriais com comandos. Cada arquivo é um exercício prático que você pode (e
 | [`praticas/07-rodar-testes.md`](praticas/07-rodar-testes.md) | Rodar `pytest` no devcontainer e em container isolado |
 | [`praticas/08-debug-vscode.md`](praticas/08-debug-vscode.md) | Depurar com breakpoints no VS Code (debugpy attach) |
 | [`praticas/09-deploy-manual-aws.md`](praticas/09-deploy-manual-aws.md) | Deploy manual AWS: ECR, ECS Fargate, EKS, RDS, Secrets Manager, DynamoDB (por semana) |
+| [`praticas/11-kubernetes-kind-local.md`](praticas/11-kubernetes-kind-local.md) | Aula 6: cluster Kind local + manifests `infra/k8s/` (Postgres pod + API 2 réplicas + NodePort + demo perda de dados) |
 | [`praticas/99-troubleshooting.md`](praticas/99-troubleshooting.md) | Erros comuns + como resolver |
 
 > 💡 **Os práticos não dependem todos uns dos outros.** Mas se está perdido,
@@ -91,5 +92,6 @@ docs/
     ├── 07-rodar-testes.md
     ├── 08-debug-vscode.md
     ├── 09-deploy-manual-aws.md
+    ├── 11-kubernetes-kind-local.md
     └── 99-troubleshooting.md
 ```
