@@ -54,6 +54,43 @@ def test_download_inexistente_404(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def _upload(client: TestClient, conteudo: bytes) -> str:
+    """Helper: envia um arquivo e devolve o nome armazenado."""
+    resp = client.post(
+        "/uploads",
+        files={"file": ("nota.txt", io.BytesIO(conteudo), "text/plain")},
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["filename"]
+
+
+def test_download_via_url_local(client: TestClient) -> None:
+    """`?via=url` devolve JSON com a rota da API e `expires_in` nulo (local)."""
+    filename = _upload(client, b"conteudo via url")
+    resp = client.get(f"/uploads/{filename}?via=url")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["url"] == f"/uploads/{filename}"
+    assert body["expires_in"] is None
+    assert body["storage_mode"] == "local"
+
+
+def test_download_via_stream_local(client: TestClient) -> None:
+    """`?via=stream` no modo local serve os bytes do arquivo (200)."""
+    conteudo = b"conteudo via stream"
+    filename = _upload(client, conteudo)
+    resp = client.get(f"/uploads/{filename}?via=stream")
+    assert resp.status_code == 200
+    assert resp.content == conteudo
+
+
+def test_download_via_invalido_422(client: TestClient) -> None:
+    """Valor de `via` fora do Literal é rejeitado pela validação (422)."""
+    filename = _upload(client, b"qualquer")
+    resp = client.get(f"/uploads/{filename}?via=banana")
+    assert resp.status_code == 422
+
+
 def test_upload_extensao_preservada(client: TestClient) -> None:
     resp = client.post(
         "/uploads",

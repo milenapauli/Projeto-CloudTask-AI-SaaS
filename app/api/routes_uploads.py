@@ -13,13 +13,21 @@ A escolha entre backend local e S3 é feita por
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from typing import Literal
+
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import (
+    FileResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 
 from app.core.config import settings
-from app.schemas import UploadResponse
+from app.schemas import DownloadUrlResponse, UploadResponse
 from app.services.s3_service import (
     LocalStorage,
+    S3Storage,
     StorageError,
     get_storage,
 )
@@ -116,11 +124,36 @@ async def create_upload(file: UploadFile = File(...)) -> UploadResponse:
 
 
 GET_DESCRIPTION = """\
-Baixa o arquivo previamente enviado.
+Baixa o arquivo previamente enviado. O parâmetro `via` escolhe **como** o
+download acontece — os três modos existem para ilustrar os padrões de entrega
+de arquivos na nuvem.
 
-* Modo `local`: a API serve o arquivo direto do disco.
-* Modo `s3`: a API responde com **redirect 307** para a URL pré-assinada do S3
-  (o cliente baixa direto do S3, sem passar pelo nosso servidor).
+| `via` | Modo `s3` | Modo `local` | Quando usar |
+| --- | --- | --- | --- |
+| `redirect` *(default)* | `307` → URL pré-assinada | serve o arquivo do disco | **padrão de produção**: o S3 entrega direto ao cliente |
+| `url` | `200` JSON `{url, expires_in}` | `200` JSON (`url` = rota da API) | frontend baixa em **1 clique** (ver snippet abaixo) |
+| `stream` | `200` com os **bytes** (proxy) | serve o arquivo do disco | funciona no **Swagger**; veja a ressalva abaixo |
+
+### ⚠️ Por que NÃO baixar pela API (`via=stream`) em produção?
+
+No modo `stream` (proxy) o arquivo trafega **`S3 → API → cliente`**. Isso:
+
+* **dobra a banda** (paga-se egress ~2x) e satura a rede da API;
+* **prende um worker** da API durante toda a transferência;
+* **não escala barato** — para servir downloads pesados você teria que crescer a
+  API só para empurrar bytes;
+* **perde features do S3/CDN** (CloudFront, *range requests* / pausar-e-retomar).
+
+> **Regra de ouro:** a **API autoriza** (gera a URL pré-assinada que expira) e o
+> **S3/CDN entrega** os bytes. O `stream` existe aqui só porque o **Swagger UI**
+> (rodando no browser) não consegue seguir o redirect `307` até o S3 sem CORS.
+
+### Frontend de 1 clique (modo `url`)
+
+```js
+const { url } = await fetch(`/uploads/${name}?via=url`).then(r => r.json());
+window.location = url;   // baixa direto do S3 — 1 clique do usuário
+```
 """
 
 
@@ -129,16 +162,37 @@ Baixa o arquivo previamente enviado.
     summary="Baixar arquivo",
     description=GET_DESCRIPTION,
     responses={
-        200: {"description": "Conteúdo do arquivo (modo local)."},
-        307: {"description": "Redirect para URL pré-assinada do S3 (modo S3)."},
+        200: {"description": "Bytes do arquivo (`via=stream`/local) **ou** JSON `DownloadUrlResponse` (`via=url`)."},
+        307: {"description": "Redirect para URL pré-assinada do S3 (`via=redirect`, modo S3)."},
         404: {"description": "Arquivo não encontrado."},
     },
 )
-async def get_upload(filename: str) -> Response:
-    """Devolve o arquivo ou redireciona para o S3.
+async def get_upload(
+    filename: str,
+    via: Literal["stream", "url", "redirect"] = Query(
+        "redirect",
+        description=(
+            "Como entregar o download: `redirect` (307 → S3, padrão de produção), "
+            "`url` (JSON com a URL pré-assinada, ideal p/ frontend) ou "
+            "`stream` (API faz proxy dos bytes — funciona no Swagger, mas é "
+            "anti-padrão em produção)."
+        ),
+    ),
+) -> Response:
+    """Devolve o arquivo conforme o modo de entrega escolhido em ``via``.
 
     Args:
         filename: Nome armazenado (devolvido pelo `POST /uploads`).
+        via: Estratégia de download (`redirect` | `url` | `stream`). Veja a
+            descrição do endpoint para o trade-off de cada uma.
+
+    Returns:
+        Response: `RedirectResponse` (307), `DownloadUrlResponse` (JSON 200),
+        `StreamingResponse`/`FileResponse` (bytes 200), conforme ``via`` e o
+        ``storage_mode`` configurado.
+
+    Raises:
+        HTTPException: 404 se o arquivo não existir.
     """
     storage = get_storage()
     if not storage.exists(filename):
@@ -147,13 +201,38 @@ async def get_upload(filename: str) -> Response:
             detail=f"Arquivo {filename!r} não encontrado.",
         )
 
+    # via=url: devolve a URL de download (não os bytes). Mesmo formato nos dois
+    # backends — só muda a URL e se ela expira.
+    if via == "url":
+        return DownloadUrlResponse(
+            url=storage.get_download_url(filename),
+            expires_in=(
+                settings.s3_presigned_url_expires
+                if settings.storage_mode == "s3"
+                else None
+            ),
+            storage_mode=settings.storage_mode,
+        )
+
     if settings.storage_mode == "s3":
-        # Em S3, devolvemos um redirect para a URL pré-assinada — o cliente
-        # baixa direto do bucket (mais rápido + nosso server não carrega bytes).
+        assert isinstance(storage, S3Storage)
+        if via == "stream":
+            # PROXY: a API baixa do S3 e repassa os bytes. Anti-padrão em prod
+            # (banda dobra), mas é o único modo que funciona dentro do Swagger.
+            body, meta = storage.open_stream(filename)
+            return StreamingResponse(
+                body.iter_chunks(),
+                media_type=meta["content_type"] or "application/octet-stream",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+        # via=redirect: devolve 307 para a URL pré-assinada — o cliente baixa
+        # direto do bucket (padrão de produção: API autoriza, S3 entrega).
         url = storage.get_download_url(filename)
         return RedirectResponse(url=url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    # Local: serve direto. FileResponse cuida do streaming e dos headers.
+    # Modo local: não há S3 para redirecionar; serve sempre o arquivo do disco
+    # (vale tanto para via=stream quanto via=redirect). FileResponse cuida do
+    # streaming e dos headers.
     assert isinstance(storage, LocalStorage)
     path = storage.base_dir / filename
     return FileResponse(path=str(path), filename=filename)

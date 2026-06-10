@@ -81,7 +81,7 @@ curl -s http://localhost:8000/tasks/1 | jq
 ```bash
 curl -i http://localhost:8000/tasks/999999
 # HTTP/1.1 404 Not Found
-# {"detail":"Task 999999 not found"}
+# {"detail":"Tarefa com id=999999 não encontrada."}
 ```
 
 ---

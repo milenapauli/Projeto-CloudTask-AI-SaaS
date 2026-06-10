@@ -94,7 +94,6 @@ HTTP/1.1 201 Created
 {
   "filename": "9a4b...nuvem.txt",
   "url": "https://cloudtask-uploads-...s3.amazonaws.com/9a4b...nuvem.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...&X-Amz-Date=...&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=...",
-  "size_bytes": 11,
   "storage_mode": "s3"
 }
 ```
@@ -120,29 +119,90 @@ Ou no Console AWS:
 
 ---
 
-## 6. Baixar via GET (redirect 307)
+## 6. Baixar via GET — três modos (`?via=`)
+
+A rota `GET /uploads/{filename}` aceita o parâmetro `?via=` para você **ver na
+prática** os padrões de entrega de arquivo na nuvem.
+
+### 6.1 `via=redirect` (default) — padrão de produção
+
+**Inspecionar** o redirect (só vê os headers, não baixa — note: **sem** `-L`):
 
 ```bash
-curl -iL http://localhost:8000/uploads/9a4b...nuvem.txt
+curl -i "http://localhost:8000/uploads/9a4b...nuvem.txt?via=redirect"
 ```
-
-Você verá:
 
 ```
 HTTP/1.1 307 Temporary Redirect
 Location: https://cloudtask-uploads-...s3.amazonaws.com/9a4b...?X-Amz-...
-...
-
-HTTP/1.1 200 OK
-[conteúdo do arquivo]
 ```
 
-> 💡 **POR QUÊ redirect, não streaming?** No modo S3 a API **não baixa o
-> arquivo do S3 para devolver pro cliente** (custo de banda, latência). Ela
-> apenas devolve um redirect 307 com a URL pré-assinada — o navegador/cliente
-> baixa **direto do S3**, economizando tudo.
+**Baixar** de fato — segue o redirect (`-L`) e salva (**sem** `-i`):
 
-A flag `-L` no curl segue o redirect automaticamente.
+```bash
+curl -L "http://localhost:8000/uploads/9a4b...nuvem.txt?via=redirect" -o saida.txt
+```
+
+A API devolve só um `307` com a URL pré-assinada — o cliente baixa **direto do
+S3**. `-L` faz o curl seguir o redirect automaticamente.
+
+### 6.2 `via=url` — JSON com a URL (ideal para frontend)
+
+```bash
+curl -i "http://localhost:8000/uploads/9a4b...nuvem.txt?via=url"
+```
+
+```json
+{
+  "url": "https://cloudtask-uploads-...s3.amazonaws.com/9a4b...?X-Amz-...",
+  "expires_in": 3600,
+  "storage_mode": "s3"
+}
+```
+
+Um frontend baixaria com **um clique** do usuário:
+
+```js
+const { url } = await fetch(`/uploads/${name}?via=url`).then(r => r.json());
+window.location = url;   // baixa direto do S3
+```
+
+### 6.3 `via=stream` — API faz proxy dos bytes (⚠️ anti-padrão)
+
+```bash
+curl "http://localhost:8000/uploads/9a4b...nuvem.txt?via=stream" -o saida.txt
+```
+
+A API baixa do S3 e **repassa** os bytes (`200 OK` com o conteúdo). Funciona em
+qualquer cliente — inclusive o **Swagger**.
+
+> ⚠️ **Não use `-i` junto com `-o`.** A flag `-i` grava os **cabeçalhos HTTP
+> dentro do arquivo** — para texto fica feio, para binário (pptx, png, zip)
+> **corrompe** o arquivo (os bytes do header entram na frente do conteúdo). Use
+> `-i` só para inspecionar headers no terminal, sem `-o`. Para salvar com o nome
+> original do header: `curl -OJ "…?via=stream"`.
+
+---
+
+> 💡 **Por que o GET "não funcionava" no Swagger?** O modo `redirect` devolve um
+> `307` para o S3. O Swagger UI roda no **browser** (via `fetch`) e **não segue**
+> esse redirect cross-origin até o S3 (o bucket não tem CORS) — então parece que
+> nada baixa. Para testar download **pelo `/docs`**, use `?via=stream` (baixa
+> direto) ou `?via=url` (mostra o link clicável).
+
+### ⚠️ Proxy vs URL pré-assinada (a lição de nuvem)
+
+`via=stream` é cômodo, mas em **produção é anti-padrão**. O arquivo trafega
+`S3 → API → cliente`, o que:
+
+- **dobra a banda** (egress ~2x) e satura a rede da API;
+- **prende um worker** durante toda a transferência;
+- **não escala barato** (cresce a API só para empurrar bytes);
+- **perde CDN e _range requests_** (CloudFront, pausar/retomar).
+
+> **Regra de ouro:** a **API autoriza** (gera a URL pré-assinada que expira) e o
+> **S3/CDN entrega** os bytes. Mais contexto em
+> [`../conceitos/s3-efs-datalake.md`](../conceitos/s3-efs-datalake.md).
 
 ---
 

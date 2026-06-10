@@ -54,7 +54,6 @@ HTTP/1.1 201 Created
 {
   "filename": "9a4b3c1d-XXXXXXXX-teste.txt",
   "url": "/uploads/9a4b3c1d-XXXXXXXX-teste.txt",
-  "size_bytes": 11,
   "storage_mode": "local"
 }
 ```
@@ -93,7 +92,7 @@ Você verá o arquivo lá, com prefixo aleatório.
 ```bash
 curl -i http://localhost:8000/uploads/nao-existe.txt
 # HTTP/1.1 404 Not Found
-# {"detail":"File not found"}
+# {"detail":"Arquivo 'nao-existe.txt' não encontrado."}
 ```
 
 ---
@@ -106,7 +105,7 @@ Criar arquivo de 11 MB (limite é 10 MB):
 dd if=/dev/zero of=grande.bin bs=1M count=11
 curl -i -X POST -F "file=@grande.bin" http://localhost:8000/uploads
 # HTTP/1.1 413 Request Entity Too Large
-# {"detail":"File exceeds 10485760 bytes"}
+# {"detail":"Arquivo excede 10 MB."}
 ```
 
 > 💡 **Por que 10 MB?** Limite didático em `app/api/routes_uploads.py`. Em

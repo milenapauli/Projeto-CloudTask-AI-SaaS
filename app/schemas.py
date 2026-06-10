@@ -82,6 +82,61 @@ class UploadResponse(BaseModel):
     )
 
 
+class DownloadUrlResponse(BaseModel):
+    """Resposta do ``GET /uploads/{filename}?via=url``.
+
+    Em vez de servir os bytes, a API devolve **a URL de download** e deixa o
+    cliente baixar por conta própria. No modo ``s3`` essa URL é **pré-assinada**
+    (temporária); no modo ``local`` é a própria rota da API. É o formato ideal
+    para um frontend: ``fetch`` neste endpoint e depois
+    ``window.location = url`` baixa o arquivo com **um clique** do usuário.
+
+    Atributos:
+        url: URL/caminho para baixar. No S3, link pré-assinado que expira;
+            no local, ``/uploads/<filename>``.
+        expires_in: Segundos até a URL expirar (somente S3). ``None`` no modo
+            local, onde a rota não expira.
+        storage_mode: Backend que guardou o arquivo (``local`` ou ``s3``).
+
+    Example:
+        >>> DownloadUrlResponse(
+        ...     url="/uploads/abcd1234-deadbeef.txt",
+        ...     expires_in=None,
+        ...     storage_mode="local",
+        ... ).model_dump()
+        {'url': '/uploads/abcd1234-deadbeef.txt', 'expires_in': None, 'storage_mode': 'local'}
+    """
+
+    url: str = Field(
+        ...,
+        description="URL de download. No S3 é pré-assinada (expira); no local é a rota da API.",
+        examples=["/uploads/abcd1234-deadbeef.txt"],
+    )
+    expires_in: int | None = Field(
+        default=None,
+        description="Segundos até a URL pré-assinada expirar (apenas S3; `null` no local).",
+        examples=[900],
+    )
+    storage_mode: Literal["local", "s3"] = Field(..., examples=["local"])
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "url": "/uploads/abcd1234-deadbeef.txt",
+                    "expires_in": None,
+                    "storage_mode": "local",
+                },
+                {
+                    "url": "https://meu-bucket.s3.amazonaws.com/abcd.txt?X-Amz-Signature=...",
+                    "expires_in": 900,
+                    "storage_mode": "s3",
+                },
+            ]
+        }
+    )
+
+
 class ReadyResponse(BaseModel):
     """Resposta do endpoint :func:`app.api.routes_health.ready` (readiness).
 

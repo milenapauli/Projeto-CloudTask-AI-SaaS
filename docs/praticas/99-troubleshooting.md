@@ -219,7 +219,7 @@ pytest --rootdir=/app /app/tests/
 docker compose down && docker compose up -d
 ```
 
-### `404 File not found` ao baixar do S3
+### `404 Arquivo não encontrado` ao baixar do S3
 
 **Causa:** prefixo gerado é único, você usou nome errado.
 **Fix:** use o `filename` da resposta do POST. Liste no bucket:

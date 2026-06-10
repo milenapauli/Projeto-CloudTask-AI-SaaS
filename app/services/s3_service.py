@@ -184,6 +184,41 @@ class S3Storage:
         except Exception as exc:  # noqa: BLE001
             raise StorageError(f"Falha ao gerar URL pré-assinada: {exc}") from exc
 
+    def open_stream(self, stored_name: str) -> tuple[IO[bytes], dict]:
+        """Abre o objeto no S3 e devolve um fluxo de bytes + metadados.
+
+        Usado pela rota ``GET /uploads/{filename}?via=stream`` para fazer
+        *proxy* do download: a API baixa do S3 e repassa os bytes ao cliente.
+
+        POR QUÊ ISTO É UM ANTI-PADRÃO EM PRODUÇÃO: o arquivo trafega
+        ``S3 -> API -> cliente`` (banda dobrada, ~2x de custo de egress), e
+        cada download segura um worker da API enquanto a transferência dura.
+        O padrão recomendado é a **URL pré-assinada** (ver
+        :meth:`get_download_url`), em que o S3/CDN entrega direto ao cliente e
+        a API só autoriza. Mantemos ``open_stream`` por ser o único modo que
+        funciona dentro do Swagger UI (que não segue o redirect 307).
+
+        Args:
+            stored_name: Nome (key) do objeto no bucket.
+
+        Returns:
+            tuple[IO[bytes], dict]: o corpo do objeto (``StreamingBody``, que é
+            file-like e expõe ``iter_chunks``) e um dicionário com
+            ``content_type`` (str | None) e ``content_length`` (int | None).
+
+        Raises:
+            StorageError: se o objeto não existir ou a leitura falhar.
+        """
+        try:
+            obj = self._client().get_object(Bucket=self.bucket, Key=stored_name)
+        except Exception as exc:  # noqa: BLE001
+            raise StorageError(f"Falha ao ler do S3: {exc}") from exc
+        meta = {
+            "content_type": obj.get("ContentType"),
+            "content_length": obj.get("ContentLength"),
+        }
+        return obj["Body"], meta
+
     def delete(self, stored_name: str) -> None:
         try:
             self._client().delete_object(Bucket=self.bucket, Key=stored_name)
