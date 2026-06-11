@@ -607,7 +607,12 @@ Na conta própria não existe `LabRole`: você cria a **task execution role**
 (deixa o Fargate puxar do ECR e mandar logs). O resto é cluster → task
 definition → rede → service.
 
-**Linux/macOS (bash):**
+> ⚠️ **Não rode tudo de uma vez.** A role do passo 1 leva alguns segundos
+> para **propagar** no IAM; se o passo 3 (`register-task-definition`) rodar
+> antes, falha com `ClientException: Role is not valid` — e aí o resto cai em
+> cascata (`TaskDefinition not found`, `Service not found`). Rode os passos
+> 1–2, **espere ~15 s**, depois siga do passo 3. Se já caiu, repita só a
+> partir do passo 3 — cluster e role já existem.
 ```bash
 # 0. pre-req: imagem ja no ECR (§3); ACCOUNT_ID e URI
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
