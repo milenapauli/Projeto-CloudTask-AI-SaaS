@@ -593,7 +593,148 @@ aws ecr list-images --repository-name cloudtask-api
 - Cobra só pelo tempo do container ligado.
 - Suba em ~5 min.
 
-### Passos (via Console — Learner Lab limita CLI)
+### Passos
+
+> 🔵 **Conta AWS própria:** crie **tudo via CLI** (§4.1-AWS_PROPRIA).
+>
+> 🟢 **AWS Academy (Learner Lab):** crie pelo **Console** (§4.1-AWS_ACADEMY) —
+> a role `voclabs` não autoriza criar a task execution role via CLI. O
+> Console também serve à conta própria, se preferir clicar.
+
+#### 4.1-AWS_PROPRIA — via CLI (apenas conta própria)
+
+Na conta própria não existe `LabRole`: você cria a **task execution role**
+(deixa o Fargate puxar do ECR e mandar logs). O resto é cluster → task
+definition → rede → service.
+
+**Linux/macOS (bash):**
+```bash
+# 0. pre-req: imagem ja no ECR (§3); ACCOUNT_ID e URI
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export ECR=$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloudtask-api
+
+# 1. task execution role (idempotente). Trust = ecs-tasks pode assumir.
+aws iam create-role --role-name ecsTaskExecutionRole \
+  --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Action":"sts:AssumeRole"}]}' 2>/dev/null || true
+aws iam attach-role-policy --role-name ecsTaskExecutionRole \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+# 2. cluster Fargate
+aws ecs create-cluster --cluster-name cloudtask-fargate
+
+# 3. task definition via arquivo (evita quoting de JSON no shell)
+cat > /tmp/fargate-taskdef.json <<JSON
+{
+  "family": "cloudtask-api",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "containerDefinitions": [{
+    "name": "api",
+    "image": "$ECR:latest",
+    "essential": true,
+    "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+    "environment": [
+      {"name": "DATABASE_URL", "value": "postgresql://USER:SENHA@HOST:5432/cloudtask"},
+      {"name": "SECRET_KEY", "value": "troque-isto"}
+    ]
+  }]
+}
+JSON
+aws ecs register-task-definition --cli-input-json file:///tmp/fargate-taskdef.json
+
+# 4. rede: VPC default, 1 subnet publica, SG liberando 8000
+export VPC_ID=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true \
+  --query 'Vpcs[0].VpcId' --output text)
+export SUBNET_ID=$(aws ec2 describe-subnets --filters Name=vpc-id,Values=$VPC_ID \
+  --query 'Subnets[0].SubnetId' --output text)
+export SG_ID=$(aws ec2 create-security-group --group-name cloudtask-fargate-sg \
+  --description "ECS Fargate 8000" --vpc-id $VPC_ID --query 'GroupId' --output text)
+aws ec2 authorize-security-group-ingress --group-id $SG_ID \
+  --protocol tcp --port 8000 --cidr 0.0.0.0/0
+
+# 5. servico (1 task, IP publico para testar sem LB)
+aws ecs create-service --cluster cloudtask-fargate --service-name cloudtask-api \
+  --task-definition cloudtask-api --desired-count 1 --launch-type FARGATE \
+  --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}"
+
+# 6. IP publico da task (espere ~1 min ate RUNNING)
+export TASK_ARN=$(aws ecs list-tasks --cluster cloudtask-fargate \
+  --service-name cloudtask-api --query 'taskArns[0]' --output text)
+export ENI_ID=$(aws ecs describe-tasks --cluster cloudtask-fargate --tasks $TASK_ARN \
+  --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID \
+  --query "NetworkInterfaces[0].Association.PublicIp" --output text
+# curl http://<IP>:8000/health
+```
+
+**Windows (PowerShell):**
+```powershell
+# 0. pre-req: imagem ja no ECR (§3); ACCOUNT_ID e URI
+$env:ACCOUNT_ID = aws sts get-caller-identity --query Account --output text
+$env:ECR = "$env:ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloudtask-api"
+
+# 1. task execution role (se ja existir, o erro do .exe nao interrompe)
+aws iam create-role --role-name ecsTaskExecutionRole `
+  --assume-role-policy-document '{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ecs-tasks.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}' 2>$null
+aws iam attach-role-policy --role-name ecsTaskExecutionRole `
+  --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+# 2. cluster Fargate
+aws ecs create-cluster --cluster-name cloudtask-fargate
+
+# 3. task definition via arquivo (here-string @"..."@ interpola as vars)
+$taskdef = @"
+{
+  "family": "cloudtask-api",
+  "requiresCompatibilities": ["FARGATE"],
+  "networkMode": "awsvpc",
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::$($env:ACCOUNT_ID):role/ecsTaskExecutionRole",
+  "containerDefinitions": [{
+    "name": "api",
+    "image": "$($env:ECR):latest",
+    "essential": true,
+    "portMappings": [{"containerPort": 8000, "protocol": "tcp"}],
+    "environment": [
+      {"name": "DATABASE_URL", "value": "postgresql://USER:SENHA@HOST:5432/cloudtask"},
+      {"name": "SECRET_KEY", "value": "troque-isto"}
+    ]
+  }]
+}
+"@
+$taskdef | Out-File -Encoding ascii "$env:TEMP\fargate-taskdef.json"
+aws ecs register-task-definition --cli-input-json "file://$env:TEMP\fargate-taskdef.json"
+
+# 4. rede: VPC default, 1 subnet publica, SG liberando 8000
+$env:VPC_ID = aws ec2 describe-vpcs --filters Name=isDefault,Values=true `
+  --query 'Vpcs[0].VpcId' --output text
+$env:SUBNET_ID = aws ec2 describe-subnets --filters Name=vpc-id,Values=$env:VPC_ID `
+  --query 'Subnets[0].SubnetId' --output text
+$env:SG_ID = aws ec2 create-security-group --group-name cloudtask-fargate-sg `
+  --description "ECS Fargate 8000" --vpc-id $env:VPC_ID --query 'GroupId' --output text
+aws ec2 authorize-security-group-ingress --group-id $env:SG_ID `
+  --protocol tcp --port 8000 --cidr 0.0.0.0/0
+
+# 5. servico (1 task, IP publico para testar sem LB)
+aws ecs create-service --cluster cloudtask-fargate --service-name cloudtask-api `
+  --task-definition cloudtask-api --desired-count 1 --launch-type FARGATE `
+  --network-configuration "awsvpcConfiguration={subnets=[$env:SUBNET_ID],securityGroups=[$env:SG_ID],assignPublicIp=ENABLED}"
+
+# 6. IP publico da task (espere ~1 min ate RUNNING)
+$env:TASK_ARN = aws ecs list-tasks --cluster cloudtask-fargate `
+  --service-name cloudtask-api --query 'taskArns[0]' --output text
+$env:ENI_ID = aws ecs describe-tasks --cluster cloudtask-fargate --tasks $env:TASK_ARN `
+  --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text
+aws ec2 describe-network-interfaces --network-interface-ids $env:ENI_ID `
+  --query "NetworkInterfaces[0].Association.PublicIp" --output text
+# curl http://<IP>:8000/health
+```
+
+#### 4.1-AWS_ACADEMY — via Console (também serve à conta própria)
 
 1. Console → ECS → Clusters → Create cluster.
    - Cluster name: `cloudtask-fargate`.
@@ -617,17 +758,21 @@ aws ecr list-images --repository-name cloudtask-api
    - Public IP: ENABLED (para testar sem LB).
 4. Aguardar `RUNNING` → pegar Public IP da task → `curl http://<IP>:8000/health`.
 
-> ⚠️ **`Public IP: ENABLED` é didático**, NÃO usar em produção real. Em
-> produção: Fargate atrás de ALB.
+> ⚠️ **`Public IP: ENABLED` / `--cidr 0.0.0.0/0` é didático**, NÃO usar em
+> produção real. Em produção: Fargate atrás de ALB, sem IP público.
 
 **Cleanup Fargate:**
 
 ```bash
+# zera e remove service + cluster (Academy e propria)
 aws ecs update-service --cluster cloudtask-fargate \
   --service cloudtask-api --desired-count 0
 aws ecs delete-service --cluster cloudtask-fargate \
   --service cloudtask-api --force
 aws ecs delete-cluster --cluster cloudtask-fargate
+
+# conta propria: apague tambem o SG criado na CLI (a role pode ficar p/ reuso)
+aws ec2 delete-security-group --group-name cloudtask-fargate-sg 2>/dev/null || true
 ```
 
 ---
@@ -1126,7 +1271,7 @@ houver gasto, alguma coisa escapou.
 | --- | :---: | :---: |
 | Criar bucket S3 | ⭐ | Aula 5 |
 | Login + push ECR | ⭐⭐ | Aula 7 |
-| ECS Fargate Console | ⭐⭐ | Aula 7 (opcional) |
+| ECS Fargate (CLI própria / Console Academy) | ⭐⭐ | Aula 7 (opcional) |
 | CodeBuild + GitHub | ⭐⭐⭐ | Aula 7 |
 | EKS + manifests | ⭐⭐⭐⭐ | Aula 8 |
 | Postgres como Pod | ⭐⭐ | Aula 8 |
