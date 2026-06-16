@@ -117,8 +117,14 @@ com um project name separado (`-p cloudtask-test`) para não colidir com seu dev
 ```bash
 docker compose -p cloudtask-test \
   -f docker-compose.yml -f docker-compose.test.yml \
-  run --rm api
+  run --build --rm api
 ```
+
+> ⚠️ **`--build` é obrigatório** neste caminho: o target `test` **embute o
+> código na imagem** (`COPY`, sem bind mount). Sem `--build`, o Compose roda a
+> imagem em cache com o código **antigo** — testa uma versão fóssil. (O caminho
+> rápido `pytest`/`tv` dentro do devcontainer não sofre disso: usa o código por
+> volume.)
 
 ---
 
@@ -158,8 +164,8 @@ docker compose up --build
 docker compose exec api sh                 # shell no container da API
 docker compose exec db psql -U cloudtask cloudtask
 
-# Testes (projeto isolado)
-docker compose -p cloudtask-test -f docker-compose.yml -f docker-compose.test.yml run --rm api
+# Testes (projeto isolado) — SEMPRE com --build (imagem embute o código)
+docker compose -p cloudtask-test -f docker-compose.yml -f docker-compose.test.yml run --build --rm api
 docker compose -p cloudtask-test -f docker-compose.yml -f docker-compose.test.yml down -v
 
 # Produção local (smoke test)

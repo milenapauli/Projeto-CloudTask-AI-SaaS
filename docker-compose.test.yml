@@ -7,7 +7,7 @@
 #
 #   docker compose -p cloudtask-test \
 #     -f docker-compose.yml -f docker-compose.test.yml \
-#     run --rm api
+#     run --build --rm api
 #
 # Para derrubar tudo do projeto de teste depois:
 #   docker compose -p cloudtask-test \
@@ -17,6 +17,12 @@
 #   * Banco efêmero (sem volume, sem porta no host) -> estado limpo, zero
 #     conflito de porta com o seu PostgreSQL local/dev.
 #   * Código embutido na imagem `test` (sem bind mount) -> reprodutível.
+#
+# ⚠️ SEMPRE use `--build`. O target `test` faz COPY do código para DENTRO da
+#    imagem (sem bind mount). Sem `--build`, o Compose reaproveita a imagem
+#    em cache com o código ANTIGO -> você testa uma versão fóssil e não
+#    entende por que sua correção "não fez efeito". Com `--build`, a imagem é
+#    reconstruída antes de rodar e reflete o código atual do disco.
 # =============================================================================
 
 services:

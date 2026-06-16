@@ -181,6 +181,24 @@ sem proxy.
 
 ## Testes (pytest)
 
+### Mudei o código/teste mas o resultado do container isolado não muda
+
+**Causa:** você rodou o container isolado **sem `--build`**:
+```bash
+docker compose -p cloudtask-test -f docker-compose.yml -f docker-compose.test.yml run --rm api
+```
+O target `test` faz `COPY` do código para **dentro** da imagem (sem bind mount).
+Sem `--build`, o Compose reaproveita a imagem em cache com o código **antigo** →
+você testa uma versão **fóssil** (a correção "não faz efeito"; um teste que você
+quebrou continua passando).
+
+**Fix:** sempre acrescente `--build` nesse caminho:
+```bash
+docker compose -p cloudtask-test -f docker-compose.yml -f docker-compose.test.yml run --build --rm api
+```
+> O caminho rápido (`pytest`/`tv` **dentro** do devcontainer) NÃO sofre disso —
+> ele usa o código por **volume** (target `dev`), enxergando suas edições na hora.
+
 ### `41 passed`, mas dados do dev sumiram
 
 **Causa:** TRUNCATE rodou FORA de transação (`begin` faltando).

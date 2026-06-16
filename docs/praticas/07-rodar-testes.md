@@ -114,15 +114,24 @@ Quando quiser **garantir** que os testes passam sem depender do seu ambiente:
 docker compose -p cloudtask-test \
   -f docker-compose.yml \
   -f docker-compose.test.yml \
-  run --rm api
+  run --build --rm api
 ```
 
 > 💡 Decompondo:
 > - `-p cloudtask-test` — outro **project name** → containers e volumes separados.
 > - `-f docker-compose.yml -f docker-compose.test.yml` — merge dos dois.
 > - `docker-compose.test.yml` muda `target: test` e usa banco efêmero.
+> - `--build` — **reconstrói a imagem antes de rodar** (ver aviso abaixo).
 > - `run --rm api` — sobe `db` (depends_on) + executa o CMD do target `test`
 >   (que é `pytest`) e remove no fim.
+
+> ⚠️ **SEMPRE `--build` aqui.** Diferente do caminho rápido (`pytest`/`tv`
+> dentro do devcontainer, que usa o código por **volume** e enxerga suas edições
+> na hora), o target `test` **embute o código na imagem** via `COPY` (sem bind
+> mount). Sem `--build`, o Compose reaproveita a imagem em cache com o código
+> **antigo** → você roda uma versão **fóssil**: a correção que acabou de fazer
+> "não faz efeito", ou um teste que você quebrou continua passando. Com
+> `--build`, a imagem é reconstruída e reflete o código atual do disco.
 
 Limpar:
 
