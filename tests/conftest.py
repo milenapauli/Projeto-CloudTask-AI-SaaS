@@ -22,6 +22,7 @@ EFEITO: os testes NÃO deixam dados no banco ``cloudtask`` (tudo é desfeito).
 from __future__ import annotations
 
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -32,6 +33,21 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import settings
 from app.db.database import Base, get_db
 from app.main import app
+
+
+@pytest.fixture(autouse=True)
+def _isolate_event_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isola o event store (Aula 10) num arquivo temporário por teste.
+
+    POR QUÊ autouse: o CRUD de tarefas passou a **emitir eventos**
+    (create/update/delete). Sem este isolamento, os testes gravariam no
+    ``./local_events/events.json`` real (poluição). Aqui forçamos o modo
+    ``local`` e um arquivo temporário descartável a cada teste.
+    """
+    monkeypatch.setattr(settings, "event_store_mode", "local", raising=False)
+    monkeypatch.setattr(
+        settings, "local_events_file", str(tmp_path / "events.json"), raising=False
+    )
 
 
 @pytest.fixture(scope="session")

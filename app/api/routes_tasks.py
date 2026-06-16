@@ -12,6 +12,8 @@ PADRÃO desta camada (ver :mod:`app.api`):
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,8 +21,31 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.db.models import Task
 from app.db.schemas import TaskCreate, TaskRead, TaskUpdate
+from app.services.dynamodb_service import EventStoreError, get_event_store
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+logger = logging.getLogger(__name__)
+
+
+def _emit_event(event_type: str, task_id: int | None, message: str) -> None:
+    """Registra um evento de auditoria no event store (Aula 10).
+
+    Chamado em create/update/delete para deixar um rastro do que aconteceu.
+
+    POR QUÊ engolir exceções aqui: o log de evento é **secundário**. Se o event
+    store estiver fora (DynamoDB indisponível, disco cheio), a operação de tarefa
+    NÃO deve falhar por causa disso — apenas registramos um aviso e seguimos.
+
+    Args:
+        event_type: Tipo do evento (ex.: ``task.created``).
+        task_id: Id da tarefa relacionada.
+        message: Descrição legível.
+    """
+    try:
+        get_event_store().put(event_type=event_type, task_id=task_id, message=message)
+    except EventStoreError as exc:  # store fora não pode derrubar o CRUD
+        logger.warning("Falha ao emitir evento %s: %s", event_type, exc)
 
 
 def _get_task_or_404(task_id: int, db: Session) -> Task:
@@ -84,6 +109,7 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db)) -> Task:
     db.add(task)
     db.commit()       # grava de fato no banco
     db.refresh(task)  # recarrega id/created_at/updated_at gerados pelo banco
+    _emit_event("task.created", task.id, f"Tarefa {task.id} criada: {task.title!r}.")
     return task
 
 
@@ -157,6 +183,7 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+    _emit_event("task.updated", task.id, f"Tarefa {task.id} atualizada.")
     return task
 
 
@@ -175,5 +202,6 @@ def delete_task(task_id: int, db: Session = Depends(get_db)) -> None:
     task = _get_task_or_404(task_id, db)
     db.delete(task)
     db.commit()
+    _emit_event("task.deleted", task_id, f"Tarefa {task_id} removida.")
     # 204: não retornamos corpo. POR QUÊ: o recurso não existe mais, então não
     # há o que devolver. Retornar o objeto deletado confundiria o cliente.

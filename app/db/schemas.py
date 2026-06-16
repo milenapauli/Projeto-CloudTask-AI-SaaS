@@ -109,3 +109,56 @@ class TaskRead(TaskBase):
     updated_at: datetime = Field(..., description="Última alteração da tarefa.")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# Schemas de Evento (Aula 10) — eventos/logs gravados em NoSQL (DynamoDB) ou
+# no fallback local JSON. Diferente de Task, NÃO há model SQLAlchemy: o evento
+# vive no event store (ver :mod:`app.services.dynamodb_service`), não no Postgres.
+# ---------------------------------------------------------------------------
+class EventCreate(BaseModel):
+    """Dados aceitos ao criar um evento manualmente (``POST /events``).
+
+    ``id`` e ``created_at`` NÃO vêm do cliente — o event store os gera.
+    """
+
+    event_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Tipo do evento, ex.: task.created | task.updated | task.deleted.",
+        examples=["task.created"],
+    )
+    task_id: int | None = Field(
+        default=None,
+        description="Id da tarefa relacionada (opcional para eventos avulsos).",
+        examples=[1],
+    )
+    message: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Descrição legível do evento.",
+        examples=["Tarefa 1 criada."],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"event_type": "task.created", "task_id": 1, "message": "Tarefa 1 criada."}
+            ]
+        }
+    )
+
+
+class EventRead(EventCreate):
+    """Evento retornado pela API (inclui ``id`` e ``created_at`` gerados).
+
+    ``created_at`` chega como string ISO 8601 do event store e o Pydantic a
+    converte para :class:`datetime`.
+    """
+
+    id: str = Field(..., description="Identificador único do evento (uuid).", examples=["a1b2c3d4..."])
+    created_at: datetime = Field(..., description="Quando o evento foi registrado (UTC).")
+
+    model_config = ConfigDict(from_attributes=True)

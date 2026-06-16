@@ -84,6 +84,19 @@ class Settings(BaseSettings):
     # URL pré-assinada: tempo de validade (segundos) do link de download.
     s3_presigned_url_expires: int = Field(default=900, ge=60, le=86400)
 
+    # --- Event store / logs (Aula 10 em diante) ----------------------------
+    # `local`   : grava os eventos num arquivo JSON (LOCAL_EVENTS_FILE).
+    # `dynamodb`: grava no Amazon DynamoDB (tabela DYNAMODB_TABLE_NAME).
+    # POR QUÊ os dois modos (igual ao storage): o aluno completa a Aula 10 SEM
+    # AWS (modo local) e liga o DynamoDB só quando tiver credenciais.
+    event_store_mode: Literal["local", "dynamodb"] = Field(default="local")
+    local_events_file: str = Field(default="./local_events/events.json")
+
+    # Quando `event_store_mode=dynamodb`:
+    dynamodb_table_name: str = Field(default="cloudtask-events")
+    # Endpoint customizado p/ DynamoDB Local (Docker). Vazio = DynamoDB na AWS.
+    dynamodb_endpoint_url: str = Field(default="")
+
     # Hosts aceitos pelo TrustedHostMiddleware. "*" = qualquer host (dev).
     #   Em produção, liste o domínio real para mitigar Host header spoofing.
     #

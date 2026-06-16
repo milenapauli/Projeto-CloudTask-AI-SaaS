@@ -35,7 +35,7 @@ from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app import __version__
-from app.api import routes_health, routes_tasks, routes_uploads
+from app.api import routes_events, routes_health, routes_tasks, routes_uploads
 from app.core.config import settings
 from app.db.database import Base, engine
 from app.schemas import RootResponse
@@ -48,16 +48,15 @@ APP_DESCRIPTION = """\
 Mini **SaaS de gerenciamento de tarefas** construído ao longo da disciplina
 **Computação em Nuvem** (N-CPU / UNINTER).
 
-Esta é a versão da **Semana 4** (versão `0.4.0`): sobre a base das semanas
-anteriores (CRUD, `.env`, **upload S3/local** e **Kubernetes local com Kind**),
-levamos a aplicação **para a nuvem AWS** — publicando a imagem no **Amazon ECR**
-e fazendo deploy no **Amazon EKS** (Kubernetes gerenciado) com **Service
-LoadBalancer**.
+Esta é a versão da **Semana 5** (versão `0.5.0`): sobre a base das semanas
+anteriores (CRUD, `.env`, upload S3/local, Kubernetes local e deploy no
+**EKS**), adicionamos **elasticidade** com **HPA** (autoscaling) + teste de
+carga e noções de **custo** (Cost Explorer/Budgets), e **eventos/logs** em
+**NoSQL** (Amazon **DynamoDB**) com **fallback local em JSON**.
 
-> 📌 **Aula combinada Semanas 3 + 4.** Como a Semana 3 não teve aula, os
-> experimentos das duas semanas são feitos juntos: primeiro o Kubernetes
-> **local (Kind)** da Semana 3, depois **ECR + EKS** na nuvem da Semana 4.
-> Roteiro: [`docs/praticas/13-roteiro-aula-3-e-4.md`](https://github.com/N-CPUninter/Computa-o-em-Nuvem---Projeto-exemplo-CloudTask-AI-SaaS/blob/main/docs/praticas/13-roteiro-aula-3-e-4.md).
+> 📌 **Eventos automáticos.** Criar/atualizar/excluir uma tarefa emite,
+> respectivamente, `task.created` / `task.updated` / `task.deleted` no event
+> store configurado (`EVENT_STORE_MODE` = `local` | `dynamodb`).
 
 ### Status do projeto
 
@@ -69,8 +68,8 @@ LoadBalancer**.
 |      1 | `semana-01-fastapi-docker`      | FastAPI mínimo, Docker e Docker Compose, devcontainer         |
 |      2 | `semana-02-rds-vpc-seguranca`   | PostgreSQL + CRUD, config `.env`, HTTPS, docs de VPC/IAM      |
 |      3 | `semana-03-s3-kubernetes`       | Upload S3 (com fallback local), Kubernetes local (Kind)       |
-| <kbd>4</kbd> ← *você está aqui* | `semana-04-eks-aws`             | Build/push para ECR, deploy no EKS (aula combinada com a Semana 3) |
-|      5 | `semana-05-custos-nosql-logs`   | HPA + teste de carga + Cost Explorer, eventos com DynamoDB    |
+|      4 | `semana-04-eks-aws`             | Build/push para ECR, deploy no EKS (aula combinada com a Semana 3) |
+| <kbd>5</kbd> ← *você está aqui* | `semana-05-custos-nosql-logs`   | HPA + teste de carga + Cost Explorer, eventos com DynamoDB    |
 |      6 | `semana-06-cdk-final`           | AWS CDK (S3, ECR, VPC), docs finais e checklist LGPD          |
 
 ### Tags
@@ -200,6 +199,7 @@ app = FastAPI(
 app.include_router(routes_health.router)
 app.include_router(routes_tasks.router)
 app.include_router(routes_uploads.router)
+app.include_router(routes_events.router)
 
 
 # ---------------------------------------------------------------------------

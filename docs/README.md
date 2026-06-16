@@ -27,6 +27,8 @@ Texto explicativo. Pouco ou nenhum comando para rodar. Leia antes (ou durante) a
 | [`conceitos/https-tls.md`](conceitos/https-tls.md) | 4 | TLS, ALB, HSTS, mkcert local, proxy-headers |
 | [`conceitos/s3-efs-datalake.md`](conceitos/s3-efs-datalake.md) | 5 | S3 × EFS × EBS, classes, URL pré-assinada, Data Lake |
 | [`conceitos/infra-aws-minima-por-semana.md`](conceitos/infra-aws-minima-por-semana.md) | 4+ | Stack AWS mínima por semana, custos, Postgres container × RDS, ECS × EKS |
+| [`conceitos/cost-explorer.md`](conceitos/cost-explorer.md) | 5 | Cost Explorer, Budgets (alerta por e-mail), regra "subiu/testou/destruiu" |
+| [`conceitos/aws-pricing-notes.md`](conceitos/aws-pricing-notes.md) | 5 | Preços por serviço (EC2/EKS/ELB/S3/ECR/DynamoDB) e dicas de economia |
 
 ---
 
@@ -50,6 +52,8 @@ Tutoriais com comandos. Cada arquivo é um exercício prático que você pode (e
 | [`praticas/11-ecr-push.md`](praticas/11-ecr-push.md) | Aula 7: build `--target prod` + push da imagem para o Amazon ECR (com `scripts/build-and-push-ecr.sh`) |
 | [`praticas/12-eks-deploy.md`](praticas/12-eks-deploy.md) | Aula 8: deploy no Amazon EKS (imagem do ECR + Service LoadBalancer) e **destruir** para não queimar crédito |
 | [`praticas/13-roteiro-aula-3-e-4.md`](praticas/13-roteiro-aula-3-e-4.md) | 🧭 **Roteiro da aula combinada Semanas 3+4** (Kind local → ECR → EKS), com os testes de cada etapa |
+| [`praticas/14-hpa-carga-custos.md`](praticas/14-hpa-carga-custos.md) | Aula 9: metrics-server + HPA, teste de carga (`scripts/load-test-simple.py`), observar escala e custos |
+| [`praticas/15-eventos-dynamodb.md`](praticas/15-eventos-dynamodb.md) | Aula 10: eventos/logs em DynamoDB (fallback JSON local), emissão automática no CRUD |
 | [`praticas/99-troubleshooting.md`](praticas/99-troubleshooting.md) | Erros comuns + como resolver |
 
 > 💡 **Os práticos não dependem todos uns dos outros.** Mas se está perdido,
