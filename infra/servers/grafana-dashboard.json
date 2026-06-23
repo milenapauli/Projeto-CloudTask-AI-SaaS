@@ -1,0 +1,122 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "schemaVersion": 39,
+  "tags": ["cloudtask", "academy"],
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "EC2 Instance",
+        "type": "query",
+        "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+        "includeAll": true,
+        "multi": true,
+        "refresh": 2,
+        "query": {
+          "queryType": "dimensionValues",
+          "region": "us-east-1",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "dimensionKey": "InstanceId"
+        }
+      }
+    ]
+  },
+  "time": { "from": "now-3h", "to": "now" },
+  "refresh": "1m",
+  "title": "CloudTask — Infra (Academy)",
+  "panels": [
+    {
+      "type": "text",
+      "title": "Sobre",
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "# CloudTask AI SaaS — Observabilidade\nMétricas vindas do **CloudWatch** (datasource provisionado, auth pela role do EC2).\nUse a variável **EC2 Instance** no topo para filtrar API / Frontend / Grafana."
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU dos EC2 (%)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "region": "us-east-1",
+          "namespace": "AWS/EC2",
+          "metricName": "CPUUtilization",
+          "statistic": "Average",
+          "period": "60",
+          "dimensions": { "InstanceId": "$instance" },
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Rede de saída dos EC2 (bytes)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "region": "us-east-1",
+          "namespace": "AWS/EC2",
+          "metricName": "NetworkOut",
+          "statistic": "Average",
+          "period": "60",
+          "dimensions": { "InstanceId": "$instance" },
+          "matchExact": true,
+          "metricQueryType": 0,
+          "metricEditorMode": 0
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "DynamoDB — capacidade consumida (eventos)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "region": "us-east-1",
+          "namespace": "AWS/DynamoDB",
+          "metricName": "ConsumedWriteCapacityUnits",
+          "statistic": "Sum",
+          "period": "60",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "RDS — conexões ativas",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "region": "us-east-1",
+          "namespace": "AWS/RDS",
+          "metricName": "DatabaseConnections",
+          "statistic": "Average",
+          "period": "60",
+          "matchExact": false,
+          "metricQueryType": 0,
+          "metricEditorMode": 0
+        }
+      ]
+    }
+  ]
+}

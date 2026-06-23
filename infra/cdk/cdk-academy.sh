@@ -14,8 +14,12 @@
 #
 # USO (dentro de infra/cdk/, no devcontainer ou no AWS CloudShell):
 #   pip install -r requirements.txt        # uma vez
-#   ./cdk-academy.sh deploy                 # cria as 3 stacks
-#   ./cdk-academy.sh destroy                # apaga as 3 stacks
+#   ./cdk-academy.sh deploy                 # cria todas as stacks
+#   ./cdk-academy.sh destroy                # apaga todas as stacks
+#
+# ⚠️ A ComputeStack (3 EC2) depende de Network e Database (a API lê o RDS). A
+#    ordem abaixo já garante isso. Os EC2 são baratos, mas o RDS cobra por hora —
+#    rode `destroy` ao terminar.
 #
 # Em CONTA PRÓPRIA também funciona: se não houver LabRole, o deploy roda sem
 # `--role-arn` (usa suas credenciais). Ou use o `cdk deploy` normal.
@@ -33,6 +37,7 @@ STACKS=(
   CloudTaskEvents
   CloudTaskObservability
   CloudTaskDatabase
+  CloudTaskCompute
 )
 
 ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
@@ -72,6 +77,7 @@ case "${ACTION}" in
     # Ordem INVERSA do deploy (dependentes primeiro): Database antes da Network
     # (RDS usa a VPC); Observability antes de Events (usa a tabela).
     REVERSE=(
+      CloudTaskCompute
       CloudTaskDatabase
       CloudTaskObservability
       CloudTaskEvents

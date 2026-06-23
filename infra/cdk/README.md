@@ -13,7 +13,7 @@ de criar na mão pelo Console/CLI. É o passo final da disciplina:
 
 | Arquivo | O que faz |
 | --- | --- |
-| `app.py` | Ponto de entrada do CDK; instancia as 3 stacks. |
+| `app.py` | Ponto de entrada do CDK; instancia as 7 stacks. |
 | `cdk.json` | Diz ao `cdk` como rodar o app (`python3 app.py`). |
 | `requirements.txt` | `aws-cdk-lib` + `constructs`. |
 | `stacks/storage_stack.py` | Bucket **S3** privado para uploads (seguro por padrão). |
@@ -22,10 +22,11 @@ de criar na mão pelo Console/CLI. É o passo final da disciplina:
 | `stacks/events_stack.py` | Tabela **DynamoDB** de eventos/logs (PAY_PER_REQUEST). |
 | `stacks/observability_stack.py` | **CloudWatch** Log Group + Dashboard + Alarme + **SNS**. |
 | `stacks/database_stack.py` | **RDS PostgreSQL** db.t3.micro + **Secrets Manager** (⚠️ cobra/lento). |
+| `stacks/compute_stack.py` | **3 EC2** (API + Frontend + Grafana) — usa o `LabInstanceProfile` (zero IAM). |
 
 ---
 
-## As 6 stacks (a infra das 6 semanas, como código)
+## As 7 stacks (a infra das 6 semanas, como código)
 
 Cada stack reproduz, em código, algo que construímos na mão ao longo do curso —
 mostrando que **toda a jornada cabe em IaC**:
@@ -37,6 +38,11 @@ mostrando que **toda a jornada cabe em IaC**:
 - **CloudWatch + SNS** (Semana 5) → Log Group + **Dashboard** + Alarme + canal de alerta.
 - **RDS PostgreSQL + Secrets Manager** (Semana 6) → banco gerenciado com senha
   gerada no cofre. ⚠️ É o único que **cobra por hora** e leva ~5–10 min.
+- **Compute: 3 EC2** (Semana 6) → API + Frontend + Grafana, cada um num servidor
+  (ver [`../servers/README.md`](../servers/README.md) e a
+  [prática 19](../../docs/praticas/19-servidores-ec2-grafana.md)). Usa o
+  `LabInstanceProfile` existente, então **não cria IAM**; o HTML do front e o
+  dashboard do Grafana vão **embutidos** no template (sem assets).
 
 > Todas **sem assets** (sem Lambda), para subir no Academy sem `cdk bootstrap`.
 
@@ -56,7 +62,7 @@ cdk synth
 
 ```bash
 ./cdk-academy.sh deploy     # synth + cloudformation deploy usando a LabRole
-./cdk-academy.sh destroy    # 🔥 apaga as 3 stacks
+./cdk-academy.sh destroy    # 🔥 apaga todas as stacks
 ```
 
 POR QUÊ funciona: o `cdk bootstrap`/`cdk deploy` falham no Learner Lab (criar as

@@ -38,6 +38,7 @@ from stacks.network_stack import NetworkStack
 from stacks.events_stack import EventsStack
 from stacks.observability_stack import ObservabilityStack
 from stacks.database_stack import DatabaseStack
+from stacks.compute_stack import ComputeStack
 
 app = cdk.App()
 
@@ -114,6 +115,25 @@ database = DatabaseStack(
     tags=common_tags,
     synthesizer=synthesizer,
     vpc=network.vpc,
+)
+
+# ComputeStack (7ª) — os 3 servidores (API, Frontend, Grafana). Depende da VPC
+# (NetworkStack) e, no caminho de produção, do RDS (DatabaseStack): a API lê a
+# credencial do RDS no Secrets Manager. ORDEM de deploy: Network -> Database ->
+# Compute. Se preferir o caminho barato (sem RDS), troque por:
+#     compute = ComputeStack(app, f"{PREFIX}Compute", env=env, tags=common_tags,
+#                            synthesizer=synthesizer, vpc=network.vpc)
+# e a API sobe um Postgres local em container (mesmo comportamento do
+# launch-academy.sh).
+compute = ComputeStack(
+    app,
+    f"{PREFIX}Compute",
+    env=env,
+    tags=common_tags,
+    synthesizer=synthesizer,
+    vpc=network.vpc,
+    db=database.instance,
+    db_secret_name=database.db_secret_name,
 )
 
 app.synth()

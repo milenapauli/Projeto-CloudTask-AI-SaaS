@@ -65,6 +65,11 @@ class DatabaseStack(Stack):
             deletion_protection=False,
         )
 
+        # Exposto para a ComputeStack (libera o SG da API no banco) e para o
+        # nome do segredo que a API lê em produção.
+        self.instance = db
+        self.db_secret_name = "cloudtask/rds"
+
         # ARN do segredo com a senha (a app leria daqui em produção).
         CfnOutput(
             self,
