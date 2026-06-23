@@ -55,6 +55,19 @@ A mesma senha `admin#123` é usada de propósito em tudo (banco, app, Grafana)
 **só porque é uma demo**. Em produção: senhas diferentes, fortes e fora do
 código (Secrets Manager, como o RDS já faz).
 
+> 🔐 **Como seria em produção de verdade (e por que aqui é diferente):** o ideal
+> é **não** autenticar dentro do próprio backend. Em produção colocaríamos um
+> **servidor de autenticação separado** — por exemplo o **Authentik** — num
+> servidor/host próprio (mais um EC2, ou um serviço gerenciado). Vantagens:
+> centraliza login/usuários, fala OAuth2/OIDC, e — importante — **mantém a
+> emissão/validação de credenciais e os certificados TLS isolados** do backend.
+> Gerenciar certificado dentro de cada serviço aumenta a **superfície de
+> exposição** (um vazamento no backend levaria junto o material de autenticação).
+> Aqui, por **limitação do laboratório** (1 sessão curta, sem domínio/DNS nem
+> gestão de certs própria), simplificamos: a autenticação (JWT) roda **no mesmo
+> container do backend**. É suficiente para a demo, mas a separação é o que se
+> faria "para valer".
+
 ---
 
 ## 3. Caminho A — script CLI (rápido)
@@ -103,6 +116,13 @@ vez de um Postgres em container. É a versão "produção".
 > (usa o `LabInstanceProfile` existente) e **não tem assets** (o HTML do
 > frontend e o dashboard do Grafana vão embutidos em base64 no template). Mesmo
 > truque da [prática 18](18-cdk-iac.md).
+
+Repare no salto de complexidade: agora são **3 servidores + RDS + VPC + security
+group**, todos amarrados (o frontend depende da API, a API depende do RDS). Na
+mão isso seria frágil e demorado; com **CDK** vira **um** `deploy`/`destroy`, na
+ordem certa, versionado e revisável. Quanto **maior** a infra, **maior** o ganho
+de descrevê-la como código — é justamente o que esta semana quer mostrar (mais
+detalhes em [como o CDK funciona por dentro](20-cdk-python-por-dentro.md)).
 
 ---
 

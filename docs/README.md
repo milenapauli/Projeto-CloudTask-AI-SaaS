@@ -56,7 +56,9 @@ Tutoriais com comandos. Cada arquivo é um exercício prático que você pode (e
 | [`praticas/15-eventos-dynamodb.md`](praticas/15-eventos-dynamodb.md) | Aula 10: eventos/logs em DynamoDB (fallback JSON local), emissão automática no CRUD |
 | [`praticas/16-console-vs-script.md`](praticas/16-console-vs-script.md) | 🐢 Console vs Script: criar DynamoDB/EKS/Budget **na mão** pelo console (cliques + tempo) vs 1 comando — sentir por que automatizar |
 | [`praticas/17-site-estatico-s3-vs-ec2.md`](praticas/17-site-estatico-s3-vs-ec2.md) | 🌐 **Demo rápida no AWS CloudShell**: mesma página na internet por **S3 Static Website** (sem servidor, centavos) vs **EC2 + Apache** (servidor real, cobra por hora) |
-| [`praticas/18-cdk-iac.md`](praticas/18-cdk-iac.md) | Aula 11: **Infra como Código (AWS CDK)** — `cdk synth/deploy/destroy` das stacks S3/ECR/VPC em `infra/cdk/` |
+| [`praticas/18-cdk-iac.md`](praticas/18-cdk-iac.md) | Aula 11: **Infra como Código (AWS CDK)** — `cdk synth/deploy/destroy` das stacks em `infra/cdk/` |
+| [`praticas/19-servidores-ec2-grafana.md`](praticas/19-servidores-ec2-grafana.md) | Aula 12: **3 servidores EC2** (API + Frontend + Grafana) por script CLI e pela 7ª stack CDK; **link externo real** + auth |
+| [`praticas/20-cdk-python-por-dentro.md`](praticas/20-cdk-python-por-dentro.md) | Aula 11/12: **como o AWS CDK em Python funciona por dentro** — App/Stack/Construct, synth→CloudFormation, tour pelos arquivos |
 | [`praticas/99-troubleshooting.md`](praticas/99-troubleshooting.md) | Erros comuns + como resolver |
 
 > 💡 **Os práticos não dependem todos uns dos outros.** Mas se está perdido,
@@ -124,6 +126,8 @@ docs/
     ├── 16-console-vs-script.md         ← Semana 5 (console na mão vs script)
     ├── 17-site-estatico-s3-vs-ec2.md   ← site estático: S3 vs EC2
     ├── 18-cdk-iac.md                   ← Semana 6 (Aula 11: AWS CDK / IaC)
+    ├── 19-servidores-ec2-grafana.md    ← Semana 6 (Aula 12: 3 EC2 API/Front/Grafana)
+    ├── 20-cdk-python-por-dentro.md     ← Semana 6 (Aula 11/12: CDK Python por dentro)
     └── 99-troubleshooting.md
 
 entrega-final/                          ← Aula 12 (fechamento)

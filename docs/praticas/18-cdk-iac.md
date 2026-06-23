@@ -15,6 +15,10 @@
 > ⚠️ **Custo:** `cdk synth` é **grátis** (só gera arquivo). `cdk deploy` cria
 > recursos de verdade — S3/ECR são centavos; a VPC vem **sem NAT** (sem custo).
 > Sempre `cdk destroy` ao terminar.
+>
+> 🔎 **Quer entender por dentro** (como Python vira CloudFormation, o que é um
+> *construct*, tokens, L1 vs L2)? Veja a
+> [prática 20 — CDK Python por dentro](20-cdk-python-por-dentro.md).
 
 ---
 

@@ -88,6 +88,17 @@ common_tags = {
 # ---------------------------------------------------------------------------
 # Stacks. Cada uma é independente — você pode `cdk deploy CloudTaskStorage`
 # isolada, por exemplo. São pequenas de propósito (didático).
+#
+# ANATOMIA de cada chamada abaixo (vale para TODO construct do CDK):
+#     StorageStack(app, "CloudTaskStorage", env=..., tags=..., synthesizer=...)
+#                  ^^^   ^^^^^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#                  (1)   (2)                (3)
+#   (1) scope  -> ONDE na árvore: `app` = filha direta do App (a raiz).
+#   (2) id     -> nome ÚNICO no scope; vira o nome da stack no CloudFormation.
+#   (3) props  -> configuração (conta/região, tags, synthesizer...).
+# A árvore resultante é:  App -> [Storage, Ecr, Network, ...] -> recursos.
+# Nada é criado AQUI: instanciar só MONTA o modelo em memória; o template só
+# nasce no `app.synth()` lá embaixo.
 # ---------------------------------------------------------------------------
 storage = StorageStack(app, f"{PREFIX}Storage", env=env, tags=common_tags, synthesizer=synthesizer)
 ecr = EcrStack(app, f"{PREFIX}Ecr", env=env, tags=common_tags, synthesizer=synthesizer)
@@ -136,4 +147,10 @@ compute = ComputeStack(
     db_secret_name=database.db_secret_name,
 )
 
+# Fecha a "montagem": percorre TODA a árvore (App -> stacks -> constructs) e
+# escreve os templates CloudFormation em `cdk.out/` (um .template.json por
+# stack). É AQUI que os tokens (nomes/ARNs/IDs que só existem no deploy) viram
+# `Ref`/`Fn::GetAtt`, e que as referências entre stacks viram Export/ImportValue.
+# Depois disso, é o CloudFormation (via `cdk deploy` ou `aws cloudformation
+# deploy`) que de fato cria os recursos na AWS.
 app.synth()

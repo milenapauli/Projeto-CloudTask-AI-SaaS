@@ -35,17 +35,29 @@ class StorageStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # ANATOMIA DE UM CONSTRUCT (modelo de TODO recurso no CDK):
+        #   s3.Bucket(self, "UploadsBucket", **props)
+        #            └ scope └ id            └ configuração
+        #   * scope = `self` -> este bucket pertence a ESTA stack (entra na árvore
+        #     abaixo dela).
+        #   * id = "UploadsBucket" -> único DENTRO da stack; o CDK o usa para
+        #     montar o "Logical ID" no template (NÃO é o nome do bucket na AWS).
+        #   * props = as linhas abaixo -> cada uma vira uma propriedade do
+        #     `AWS::S3::Bucket` no CloudFormation gerado.
+        #   `s3.Bucket` é um construct de NÍVEL 2 (L2): API amigável, com defaults
+        #   seguros e validação — você escreve pouco e ganha um recurso correto.
+        #
         # POR QUÊ não definimos `bucket_name`: nomes de bucket são GLOBAIS na
         # AWS. Deixar o CDK gerar um nome único evita colisão "BucketAlreadyExists"
         # quando vários alunos implantam na mesma região.
         bucket = s3.Bucket(
             self,
             "UploadsBucket",
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-            encryption=s3.BucketEncryption.S3_MANAGED,
-            versioned=True,
-            enforce_ssl=True,  # nega requisições não-HTTPS (boa prática)
-            removal_policy=RemovalPolicy.DESTROY,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,  # sem acesso público
+            encryption=s3.BucketEncryption.S3_MANAGED,           # criptografia em repouso
+            versioned=True,                                       # guarda versões antigas
+            enforce_ssl=True,                                     # nega requisições não-HTTPS
+            removal_policy=RemovalPolicy.DESTROY,                 # destroy apaga o bucket (didático)
         )
 
         # Saída exibida no fim do `cdk deploy` e consultável depois. Útil para
