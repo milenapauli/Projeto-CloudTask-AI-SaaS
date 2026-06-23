@@ -177,16 +177,45 @@ aws ec2 associate-address --region "$REGION" --instance-id "$EDGE_ID" --allocati
 
 rm -f "$UD_API" "$UD_GRAF" "$UD_EDGE"
 
-cat <<EOF
-
-============================================================
-  CloudTask AI SaaS — HTTPS no ar (cert leva ~1-3 min após boot)
-------------------------------------------------------------
-  App (abra este):   https://$HOST/
-  Swagger (c/ senha):https://$HOST/api/docs     (admin / $ADMIN_PASSWORD)
-  Grafana:           https://$HOST/grafana/     (admin / $ADMIN_PASSWORD)
-
-  Login do app:      admin / $ADMIN_PASSWORD
-  (HTTP redireciona para HTTPS; API/Grafana não ficam expostos direto.)
-============================================================
-EOF
+# --- Resumo final: links dos serviços + token JWT para o Swagger -------------
+# Espera a API responder pelo Edge (cert ACME + 1ª build do Docker) e faz login
+# (admin/ADMIN_PASSWORD) para imprimir o token Bearer que ativa as rotas
+# protegidas no botão 'Authorize' do Swagger.
+API_BASE="https://$HOST/api"
+echo
+echo "============================================================"
+echo "  CloudTask AI SaaS — serviços no ar"
+echo "------------------------------------------------------------"
+echo "  App (frontend):  https://$HOST/"
+echo "  API (Swagger):   https://$HOST/api/docs   (admin / $ADMIN_PASSWORD)"
+echo "  Grafana:         https://$HOST/grafana/   (admin / $ADMIN_PASSWORD)"
+echo
+echo "  Aguardando a API responder (cert ACME + 1ª build do Docker, ~3-5 min)..."
+TOKEN=""
+for _ in $(seq 1 32); do
+  if curl -fsS -m 6 "$API_BASE/health" >/dev/null 2>&1; then
+    TOKEN="$(curl -fsS -m 8 -X POST "$API_BASE/auth/login" \
+      -H 'Content-Type: application/json' \
+      -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}" \
+      | sed -E 's/.*"access_token":"([^"]+)".*/\1/' || true)"
+    break
+  fi
+  sleep 15
+done
+echo
+if [ -n "$TOKEN" ]; then
+  echo "  🔑 Token Bearer (JWT) — cole em 'Authorize' no Swagger:"
+  echo
+  echo "      $TOKEN"
+  echo
+  echo "  No Swagger (https://$HOST/api/docs): botão 'Authorize' → cole o token → Authorize."
+  echo "  Aí as rotas protegidas (/tasks, /uploads, /events) passam a funcionar."
+else
+  echo "  ⏳ A API ainda não respondeu. Quando subir, pegue o token com:"
+  echo
+  echo "      curl -s -X POST $API_BASE/auth/login -H 'Content-Type: application/json' \\"
+  echo "        -d '{\"username\":\"admin\",\"password\":\"$ADMIN_PASSWORD\"}'"
+fi
+echo "  Login do app/Grafana: admin / $ADMIN_PASSWORD"
+echo "  (HTTP redireciona p/ HTTPS; API/Grafana não ficam expostos direto.)"
+echo "============================================================"
