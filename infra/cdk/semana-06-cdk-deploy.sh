@@ -147,13 +147,23 @@ case "${ACTION}" in
       CloudTaskStorage
       CloudTaskNetwork
     )
+    # SEQUENCIAL (deleta + espera CADA uma antes da próxima). POR QUÊ não disparar
+    # tudo em paralelo: uma stack que EXPORTA algo só pode ser deletada depois que
+    # quem IMPORTA já sumiu (ex.: Events exporta a tabela que a Observability
+    # importa). Em paralelo, o delete da Events falha ("Cannot delete export ...
+    # in use") e o stack volta para CREATE_COMPLETE — aí o `wait` fica preso para
+    # sempre. Deletando em ordem inversa, uma de cada vez, isso não acontece.
     for s in "${REVERSE[@]}"; do
+      # pula o que não existe (deploy parcial / já deletado)
+      if ! aws cloudformation describe-stacks --stack-name "${s}" --region "${REGION}" >/dev/null 2>&1; then
+        echo "    ${s}: (ausente, pulando)"
+        continue
+      fi
       echo "==> delete ${s}..."
       aws cloudformation delete-stack --stack-name "${s}" --region "${REGION}" 2>/dev/null || true
-    done
-    for s in "${REVERSE[@]}"; do
       aws cloudformation wait stack-delete-complete --stack-name "${s}" --region "${REGION}" 2>/dev/null \
-        && echo "    ${s}: deletado" || true
+        && echo "    ${s}: deletado" \
+        || echo "    ${s}: ⚠️ não deletou (ver: aws cloudformation describe-stack-events --stack-name ${s})"
     done
     echo "🔥 Stacks removidas."
     ;;
