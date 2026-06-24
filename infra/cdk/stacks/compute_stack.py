@@ -142,11 +142,21 @@ class ComputeStack(Stack):
         )
         for port in (22, 80, 443):
             sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(port))
+        # 8000/3000 só DENTRO do grupo (o Edge alcança a API/Grafana). POR QUÊ um
+        # CfnSecurityGroupIngress SEPARADO (e não sg.add_ingress_rule com a própria
+        # SG como peer): a auto-referência INLINE faz a SG citar o próprio GroupId
+        # DENTRO dela mesma -> "Circular dependency" no CloudFormation. Numa regra
+        # à parte, a referência fica numa direção só.
         for port in (8000, 3000):
-            sg.add_ingress_rule(
-                ec2.Peer.security_group_id(sg.security_group_id),
-                ec2.Port.tcp(port),
-                "interno (só o Edge alcança)",
+            ec2.CfnSecurityGroupIngress(
+                self,
+                f"SelfIngress{port}",
+                group_id=sg.security_group_id,
+                ip_protocol="tcp",
+                from_port=port,
+                to_port=port,
+                source_security_group_id=sg.security_group_id,
+                description="interno (Edge -> API/Grafana)",
             )
 
         subnet_id = vpc.public_subnets[0].subnet_id
