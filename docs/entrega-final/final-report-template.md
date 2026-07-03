@@ -81,7 +81,7 @@ Durante o desenvolvimento foram utilizadas algumas decisões para reduzir custos
 
 ## 8. LGPD e segurança
 
-Foram adotadas boas práticas de segurança durante o desenvolvimento do projeto, incluindo utilização de IAM, armazenamento de configurações em variáveis de ambiente, ausência de credenciais no código-fonte, utilização de criptografia oferecida pelos serviços da AWS e armazenamento privado no Amazon S3.
+Foram adotadas boas práticas de segurança durante o desenvolvimento do projeto, incluindo utilização de IAM, armazenamento de configurações em variáveis de ambiente, ausência de credenciais no código-fonte, utilização de criptografia oferecida pelos serviços da AWS e armazenamento privado no Amazon S3. O uso de autenticação multifator (MFA) também faz parte das boas práticas de segurança da AWS. Porém, essa configuração não pôde ser realizada por conta das limitações do AWS Academy Learner Lab.
 O projeto também contempla aspectos introdutórios da LGPD, documentados no checklist de segurança entregue junto com o relatório.
 
 ## 9. Dificuldades e aprendizados
